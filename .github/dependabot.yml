@@ -1,0 +1,18 @@
+version: 2
+updates:
+  # Enable version updates for GitHub actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  # Enable updates for Rust packages
+  - package-ecosystem: "cargo"
+    directory: "/" # Location of package manifests
+    schedule:
+      interval: "daily"
+    ignore:
+      # skip patch updates, as they can be quite noisy, but keep
+      # minor and major updates so that we don't fall too far
+      # behind
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
