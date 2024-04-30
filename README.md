@@ -7,4 +7,4 @@ This repository implements a sync server against which Taskwarrior and other app
 ## Status
 
 This repository was spun off from Taskwarrior itself after the 3.0.0 release.
-It is still under development and currently best described as a refernce implementation of the Taskchampion sync protocol.
+It is still under development and currently best described as a reference implementation of the Taskchampion sync protocol.
