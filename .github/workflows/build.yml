@@ -4,7 +4,17 @@ on: [push, pull_request]
 
 jobs:
   build:
-    name: Build TaskChampion Sync-Server
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - tag: amd64-musl
+            target: x86_64-unknown-linux-musl
+            test: false
+          - tag: amd64-glibc
+            target: x86_64-unknown-linux-gnu
+            test: true
+    name: Build TaskChampion Sync-Server ${{ matrix.target.tag }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -13,35 +23,39 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.77
+          targets: ${{ matrix.target.target }}
       - name: Test
+        if: ${{ matrix.target.test }}
         run: cargo test
       - name: Build
-        run: cargo build --release --locked
+        run: |
+          [ "${{ matrix.target.target }}" == "x86_64-unknown-linux-musl" ] && sudo apt update && sudo apt -y install musl-tools
+          cargo build --target ${{ matrix.target.target }} --release --locked
       - name: Package current compilation
         id: package-current
         run: |
-          install -Dm755 "target/release/taskchampion-sync-server" "taskchampion-sync-server-${GITHUB_REF##*/}-${GITHUB_SHA}/taskchampion-sync-server"
-          install -Dm644 "README.md" "taskchampion-sync-server-${GITHUB_REF##*/}-${GITHUB_SHA}/README.md"
-          install -Dm644 "LICENSE" "taskchampion-sync-server-${GITHUB_REF##*/}-${GITHUB_SHA}/LICENSE"
+          install -Dm755 "target/${{ matrix.target.target }}/release/taskchampion-sync-server" "taskchampion-sync-server-${{ matrix.target.tag }}-${GITHUB_REF##*/}-${GITHUB_SHA}/taskchampion-sync-server"
+          install -Dm644 "README.md" "taskchampion-sync-server-${{ matrix.target.tag }}-${GITHUB_REF##*/}-${GITHUB_SHA}/README.md"
+          install -Dm644 "LICENSE" "taskchampion-sync-server-${{ matrix.target.tag }}-${GITHUB_REF##*/}-${GITHUB_SHA}/LICENSE"
           echo "version=${GITHUB_REF##*/}-${GITHUB_SHA}" >> $GITHUB_OUTPUT
       - name: Archive current compilation
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: "taskchampion-sync-server-${{ steps.package-current.outputs.version }}"
-          path: "taskchampion-sync-server-${{ steps.package-current.outputs.version }}/"
+          name: "taskchampion-sync-server-${{ matrix.target.tag }}-${{ steps.package-current.outputs.version }}"
+          path: "taskchampion-sync-server-${{ matrix.target.tag }}-${{ steps.package-current.outputs.version }}/"
       - name: Package tagged compilation
         id: package
         if: startsWith(github.ref, 'refs/tags/') && github.event_name != 'pull_request'
         run: |
-          install -Dm755 "target/release/taskchampion-sync-server" "taskchampion-sync-server-${GITHUB_REF##*/}/taskchampion-sync-server"
-          install -Dm644 "README.md" "taskchampion-sync-server-${GITHUB_REF##*/}/README.md"
-          install -Dm644 "LICENSE" "taskchampion-sync-server-${GITHUB_REF##*/}/LICENSE"
-          tar cvJf "taskchampion-sync-server-${GITHUB_REF##*/}.tar.xz" "taskchampion-sync-server-${GITHUB_REF##*/}"
+          install -Dm755 "target/${{ matrix.target.target }}/release/taskchampion-sync-server" "taskchampion-sync-server-${{ matrix.target.tag }}-${GITHUB_REF##*/}/taskchampion-sync-server"
+          install -Dm644 "README.md" "taskchampion-sync-server-${{ matrix.target.tag }}-${GITHUB_REF##*/}/README.md"
+          install -Dm644 "LICENSE" "taskchampion-sync-server-${{ matrix.target.tag }}-${GITHUB_REF##*/}/LICENSE"
+          tar cvJf "taskchampion-sync-server-${{ matrix.target.tag }}-${GITHUB_REF##*/}.tar.xz" "taskchampion-sync-server-${{ matrix.target.tag }}-${GITHUB_REF##*/}"
           echo "version=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') && github.event_name != 'pull_request'
         with:
-          files: "taskchampion-sync-server-${{ steps.package.outputs.version }}.tar.xz"
+          files: "taskchampion-sync-server-${{ matrix.target.tag }}-${{ steps.package.outputs.version }}.tar.xz"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
