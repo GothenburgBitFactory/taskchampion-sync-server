@@ -19,10 +19,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Load .env file
+        uses: xom9ikk/dotenv@v2
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.77
+          toolchain: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.target.target }}
       - name: Test
         if: ${{ matrix.target.test }}
