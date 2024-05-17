@@ -1,6 +1,6 @@
 # Versions must be major.minor
-ARG RUST_VERSION=1.77
-ARG ALPINE_VERSION=3.19
+ARG RUST_VERSION
+ARG ALPINE_VERSION
 
 FROM docker.io/rust:${RUST_VERSION}-alpine${ALPINE_VERSION} AS builder
 COPY . /data
