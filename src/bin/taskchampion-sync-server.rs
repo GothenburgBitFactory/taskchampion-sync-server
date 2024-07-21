@@ -46,7 +46,7 @@ async fn main() -> anyhow::Result<()> {
     let config = ServerConfig::from_args(snapshot_days, snapshot_versions)?;
     let server = Server::new(config, Box::new(SqliteStorage::new(data_dir)?));
 
-    log::warn!("Serving on port {}", port);
+    log::info!("Serving on port {}", port);
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())

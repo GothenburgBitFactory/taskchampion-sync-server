@@ -267,7 +267,7 @@ pub(crate) fn add_snapshot<'a>(
         }
     }
 
-    log::warn!("accepting snapshot for version {}", version_id);
+    log::debug!("accepting snapshot for version {}", version_id);
     txn.set_snapshot(
         client_id,
         Snapshot {
