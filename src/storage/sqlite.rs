@@ -42,7 +42,8 @@ impl SqliteStorage {
     }
 
     pub fn new<P: AsRef<Path>>(directory: P) -> anyhow::Result<SqliteStorage> {
-        std::fs::create_dir_all(&directory)?;
+        std::fs::create_dir_all(&directory)
+            .with_context(|| format!("Failed to create `{}`.", directory.as_ref().display()))?;
         let db_file = directory.as_ref().join("taskchampion-sync-server.sqlite3");
 
         let o = SqliteStorage { db_file };
