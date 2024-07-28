@@ -47,7 +47,7 @@ impl<'a> StorageTxn for InnerTxn<'a> {
     }
 
     fn new_client(&mut self, client_id: Uuid, latest_version_id: Uuid) -> anyhow::Result<()> {
-        if self.0.clients.get(&client_id).is_some() {
+        if self.0.clients.contains_key(&client_id) {
             return Err(anyhow::anyhow!("Client {} already exists", client_id));
         }
         self.0.clients.insert(
