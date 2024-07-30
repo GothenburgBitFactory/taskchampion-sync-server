@@ -126,7 +126,7 @@ mod test {
 
         let server = Server::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
-        let mut app = test::init_service(app).await;
+        let app = test::init_service(app).await;
 
         let uri = format!("/v1/client/add-version/{}", parent_version_id);
         let req = test::TestRequest::post()
@@ -138,7 +138,7 @@ mod test {
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
             .set_payload(b"abcd".to_vec())
             .to_request();
-        let resp = test::call_service(&mut app, req).await;
+        let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::OK);
 
         // the returned version ID is random, but let's check that it's not
@@ -168,7 +168,7 @@ mod test {
 
         let server = Server::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
-        let mut app = test::init_service(app).await;
+        let app = test::init_service(app).await;
 
         let uri = format!("/v1/client/add-version/{}", parent_version_id);
         let req = test::TestRequest::post()
@@ -180,7 +180,7 @@ mod test {
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
             .set_payload(b"abcd".to_vec())
             .to_request();
-        let resp = test::call_service(&mut app, req).await;
+        let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::CONFLICT);
         assert_eq!(resp.headers().get("X-Version-Id"), None);
         assert_eq!(
@@ -196,7 +196,7 @@ mod test {
         let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
         let server = Server::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
-        let mut app = test::init_service(app).await;
+        let app = test::init_service(app).await;
 
         let uri = format!("/v1/client/add-version/{}", parent_version_id);
         let req = test::TestRequest::post()
@@ -205,7 +205,7 @@ mod test {
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
             .set_payload(b"abcd".to_vec())
             .to_request();
-        let resp = test::call_service(&mut app, req).await;
+        let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 
@@ -216,7 +216,7 @@ mod test {
         let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
         let server = Server::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
-        let mut app = test::init_service(app).await;
+        let app = test::init_service(app).await;
 
         let uri = format!("/v1/client/add-version/{}", parent_version_id);
         let req = test::TestRequest::post()
@@ -227,7 +227,7 @@ mod test {
             ))
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
             .to_request();
-        let resp = test::call_service(&mut app, req).await;
+        let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 }

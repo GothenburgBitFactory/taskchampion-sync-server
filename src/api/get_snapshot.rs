@@ -62,14 +62,14 @@ mod test {
 
         let server = Server::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
-        let mut app = test::init_service(app).await;
+        let app = test::init_service(app).await;
 
         let uri = "/v1/client/snapshot";
         let req = test::TestRequest::get()
             .uri(uri)
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
             .to_request();
-        let resp = test::call_service(&mut app, req).await;
+        let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
 
@@ -98,14 +98,14 @@ mod test {
 
         let server = Server::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
-        let mut app = test::init_service(app).await;
+        let app = test::init_service(app).await;
 
         let uri = "/v1/client/snapshot";
         let req = test::TestRequest::get()
             .uri(uri)
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
             .to_request();
-        let resp = test::call_service(&mut app, req).await;
+        let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::OK);
 
         use actix_web::body::MessageBody;
