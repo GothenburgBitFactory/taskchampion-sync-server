@@ -59,10 +59,10 @@ mod test {
     async fn test_cache_control() {
         let server = Server::new(Default::default(), Box::new(InMemoryStorage::new()));
         let app = App::new().configure(|sc| server.config(sc));
-        let mut app = test::init_service(app).await;
+        let app = test::init_service(app).await;
 
         let req = test::TestRequest::get().uri("/").to_request();
-        let resp = test::call_service(&mut app, req).await;
+        let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());
         assert_eq!(
             resp.headers().get("Cache-Control").unwrap(),

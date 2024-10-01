@@ -98,7 +98,7 @@ mod test {
 
         let server = Server::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
-        let mut app = test::init_service(app).await;
+        let app = test::init_service(app).await;
 
         let uri = format!("/v1/client/add-snapshot/{}", version_id);
         let req = test::TestRequest::post()
@@ -107,7 +107,7 @@ mod test {
             .insert_header((CLIENT_ID_HEADER, client_id.to_string()))
             .set_payload(b"abcd".to_vec())
             .to_request();
-        let resp = test::call_service(&mut app, req).await;
+        let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::OK);
 
         // read back that snapshot
@@ -116,7 +116,7 @@ mod test {
             .uri(uri)
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
             .to_request();
-        let resp = test::call_service(&mut app, req).await;
+        let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::OK);
 
         use actix_web::body::MessageBody;
@@ -140,7 +140,7 @@ mod test {
 
         let server = Server::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
-        let mut app = test::init_service(app).await;
+        let app = test::init_service(app).await;
 
         // add a snapshot for a nonexistent version
         let uri = format!("/v1/client/add-snapshot/{}", version_id);
@@ -150,7 +150,7 @@ mod test {
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
             .set_payload(b"abcd".to_vec())
             .to_request();
-        let resp = test::call_service(&mut app, req).await;
+        let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::OK);
 
         // read back, seeing no snapshot
@@ -159,7 +159,7 @@ mod test {
             .uri(uri)
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
             .to_request();
-        let resp = test::call_service(&mut app, req).await;
+        let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
 
@@ -170,7 +170,7 @@ mod test {
         let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
         let server = Server::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
-        let mut app = test::init_service(app).await;
+        let app = test::init_service(app).await;
 
         let uri = format!("/v1/client/add-snapshot/{}", version_id);
         let req = test::TestRequest::post()
@@ -179,7 +179,7 @@ mod test {
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
             .set_payload(b"abcd".to_vec())
             .to_request();
-        let resp = test::call_service(&mut app, req).await;
+        let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 
@@ -190,7 +190,7 @@ mod test {
         let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
         let server = Server::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
-        let mut app = test::init_service(app).await;
+        let app = test::init_service(app).await;
 
         let uri = format!("/v1/client/add-snapshot/{}", version_id);
         let req = test::TestRequest::post()
@@ -201,7 +201,7 @@ mod test {
             ))
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
             .to_request();
-        let resp = test::call_service(&mut app, req).await;
+        let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 }
