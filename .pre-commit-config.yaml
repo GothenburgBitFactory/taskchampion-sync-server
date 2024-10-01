@@ -1,6 +1,7 @@
 repos:
 -   repo: https://github.com/FeryET/pre-commit-rust
     rev: v1.1.0
+    language: rust
     hooks:
     -   id: fmt
     -   id: cargo-check
