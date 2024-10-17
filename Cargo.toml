@@ -6,7 +6,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-uuid = { version = "^1.10.0", features = ["serde", "v4"] }
+uuid = { version = "^1.11.0", features = ["serde", "v4"] }
 actix-web = "^4.9.0"
 anyhow = "1.0"
 thiserror = "1.0"
