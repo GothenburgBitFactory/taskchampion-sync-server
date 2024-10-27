@@ -73,25 +73,17 @@ pub(crate) fn get_child_version<'a>(
         });
     }
 
-    // If the requested parentVersionId is the nil UUID ..
-    if parent_version_id == NIL_VERSION_ID {
-        return Ok(match client.snapshot {
-            // ..and snapshotVersionId is nil, the response is _not-found_ (the client has no
-            // versions).
-            None => GetVersionResult::NotFound,
-            // ..and snapshotVersionId is not nil, the response is _gone_ (the first version has
-            // been deleted).
-            Some(_) => GetVersionResult::Gone,
-        });
-    }
-
-    // If a version with versionId equal to the requested parentVersionId exists, the response is _not-found_ (the client is up-to-date)
-    if txn.get_version(client_id, parent_version_id)?.is_some() {
-        return Ok(GetVersionResult::NotFound);
-    }
-
-    // Otherwise, the response is _gone_ (the requested version has been deleted).
-    Ok(GetVersionResult::Gone)
+    // Return NotFound if an AddVersion with this parent_version_id would succeed, and otherwise
+    // return Gone.
+    //
+    // AddVersion will succeed if either
+    //  - the requested parent version is the latest version; or
+    //  - there is no latest version, meaning there are no versions stored for this client
+    Ok(if client.latest_version_id == parent_version_id || client.latest_version_id == NIL_VERSION_ID {
+        GetVersionResult::NotFound
+    } else {
+        GetVersionResult::Gone
+    })
 }
 
 /// Response to add_version
@@ -349,7 +341,7 @@ mod test {
     }
 
     #[test]
-    fn get_child_version_not_found_initial() -> anyhow::Result<()> {
+    fn get_child_version_not_found_initial_nil() -> anyhow::Result<()> {
         init_logging();
 
         let storage = InMemoryStorage::new();
@@ -357,7 +349,7 @@ mod test {
         let client_id = Uuid::new_v4();
         txn.new_client(client_id, NIL_VERSION_ID)?;
 
-        // when no snapshot exists, the first version is NotFound
+        // when no latest version exists, the first version is NotFound
         let client = txn.get_client(client_id)?.unwrap();
         assert_eq!(
             get_child_version(
@@ -373,25 +365,17 @@ mod test {
     }
 
     #[test]
-    fn get_child_version_gone_initial() -> anyhow::Result<()> {
+    fn get_child_version_not_found_initial_continuing() -> anyhow::Result<()> {
         init_logging();
 
         let storage = InMemoryStorage::new();
         let mut txn = storage.txn()?;
         let client_id = Uuid::new_v4();
 
-        txn.new_client(client_id, Uuid::new_v4())?;
-        txn.set_snapshot(
-            client_id,
-            Snapshot {
-                version_id: Uuid::new_v4(),
-                versions_since: 0,
-                timestamp: Utc.ymd(2001, 9, 9).and_hms(1, 46, 40),
-            },
-            vec![1, 2, 3],
-        )?;
+        txn.new_client(client_id, NIL_VERSION_ID)?;
 
-        // when a snapshot exists, the first version is GONE
+        // when no latest version exists, _any_ child version is NOT_FOUND. This allows syncs to
+        // start to a new server even if the client already has been uploading to another service.
         let client = txn.get_client(client_id)?.unwrap();
         assert_eq!(
             get_child_version(
@@ -399,9 +383,9 @@ mod test {
                 &ServerConfig::default(),
                 client_id,
                 client,
-                NIL_VERSION_ID
+                Uuid::new_v4(),
             )?,
-            GetVersionResult::Gone
+            GetVersionResult::NotFound
         );
         Ok(())
     }
@@ -434,17 +418,17 @@ mod test {
     }
 
     #[test]
-    fn get_child_version_gone() -> anyhow::Result<()> {
+    fn get_child_version_gone_not_latest() -> anyhow::Result<()> {
         init_logging();
 
         let storage = InMemoryStorage::new();
         let mut txn = storage.txn()?;
         let client_id = Uuid::new_v4();
 
-        // make up a parent version id, but neither that version
-        // nor its child exists (presumed to have been deleted)
+        // Add a parent version, but not the requested parent version
         let parent_version_id = Uuid::new_v4();
-        txn.new_client(client_id, Uuid::new_v4())?;
+        txn.new_client(client_id, parent_version_id)?;
+        txn.add_version(client_id, parent_version_id, NIL_VERSION_ID, vec![])?;
 
         let client = txn.get_client(client_id)?.unwrap();
         assert_eq!(
@@ -453,7 +437,7 @@ mod test {
                 &ServerConfig::default(),
                 client_id,
                 client,
-                parent_version_id
+                Uuid::new_v4(),
             )?,
             GetVersionResult::Gone
         );
