@@ -131,20 +131,39 @@ mod test {
     #[actix_rt::test]
     async fn test_version_not_found_and_gone() {
         let client_id = Uuid::new_v4();
-        let parent_version_id = Uuid::new_v4();
+        let test_version_id = Uuid::new_v4();
         let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
 
-        // create the client, but not the version
+        // create the client and a single version.
         {
             let mut txn = storage.txn().unwrap();
             txn.new_client(client_id, Uuid::new_v4()).unwrap();
+            txn.add_version(client_id, test_version_id, NIL_VERSION_ID, b"vers".to_vec())
+                .unwrap();
         }
         let server = Server::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
-        // the child of an unknown parent_version_id is GONE
-        let uri = format!("/v1/client/get-child-version/{}", parent_version_id);
+        // the child of the nil version is the added version
+        let uri = format!("/v1/client/get-child-version/{}", NIL_VERSION_ID);
+        let req = test::TestRequest::get()
+            .uri(&uri)
+            .append_header((CLIENT_ID_HEADER, client_id.to_string()))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(
+            resp.headers().get("X-Version-Id").unwrap(),
+            &test_version_id.to_string(),
+        );
+        assert_eq!(
+            resp.headers().get("X-Parent-Version-Id").unwrap(),
+            &NIL_VERSION_ID.to_string(),
+        );
+
+        // the child of an unknown parent_version_id is GONE.
+        let uri = format!("/v1/client/get-child-version/{}", Uuid::new_v4());
         let req = test::TestRequest::get()
             .uri(&uri)
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
@@ -154,10 +173,9 @@ mod test {
         assert_eq!(resp.headers().get("X-Version-Id"), None);
         assert_eq!(resp.headers().get("X-Parent-Version-Id"), None);
 
-        // but the child of the nil parent_version_id is NOT FOUND, since
-        // there is no snapshot.  The tests in crate::server test more
+        // The child of the latest version is NOT_FOUND. The tests in crate::server test more
         // corner cases.
-        let uri = format!("/v1/client/get-child-version/{}", NIL_VERSION_ID);
+        let uri = format!("/v1/client/get-child-version/{}", test_version_id);
         let req = test::TestRequest::get()
             .uri(&uri)
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
