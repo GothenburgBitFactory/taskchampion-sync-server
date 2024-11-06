@@ -150,7 +150,7 @@ impl StorageTxn for Txn {
                     ) {
                         (Some(ts), Some(vs), Some(v)) => Some(Snapshot {
                             version_id: v.0,
-                            timestamp: Utc.timestamp(ts, 0),
+                            timestamp: Utc.timestamp_opt(ts, 0).unwrap(),
                             versions_since: vs,
                         }),
                         _ => None,

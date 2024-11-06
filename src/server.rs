@@ -921,7 +921,7 @@ mod test {
             Snapshot {
                 version_id: version_ids[2],
                 versions_since: 2,
-                timestamp: Utc.ymd(2001, 9, 9).and_hms(1, 46, 40),
+                timestamp: Utc.with_ymd_and_hms(2001, 9, 9, 1, 46, 40).unwrap(),
             },
             vec![1, 2, 3],
         )?;
@@ -997,7 +997,7 @@ mod test {
             Snapshot {
                 version_id: snapshot_version_id,
                 versions_since: 3,
-                timestamp: Utc.ymd(2001, 9, 9).and_hms(1, 46, 40),
+                timestamp: Utc.with_ymd_and_hms(2001, 9, 9, 1, 46, 40).unwrap(),
             },
             data.clone(),
         )?;
