@@ -1,0 +1,86 @@
+name: checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  clippy:
+    runs-on: ubuntu-latest
+    name: "Check & Clippy"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: "stable"
+          override: true
+          components: clippy
+
+      - uses: actions-rs/cargo@v1.0.3
+        with:
+          command: check
+
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features --no-deps -- -D warnings
+          name: "Clippy Results"
+
+  rustdoc:
+    runs-on: ubuntu-latest
+    name: "Rustdoc"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          minimal: true
+
+      - uses: actions-rs/cargo@v1.0.3
+        with:
+          command: rustdoc
+          args: -p taskchampion-sync-server --all-features -- -Z unstable-options  --check -Dwarnings
+
+  fmt:
+    runs-on: ubuntu-latest
+    name: "Formatting"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          components: rustfmt
+          toolchain: stable
+          override: true
+
+      - uses: actions-rs/cargo@v1.0.3
+        with:
+          command: fmt
+          args: --all -- --check
