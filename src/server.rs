@@ -79,11 +79,15 @@ pub(crate) fn get_child_version<'a>(
     // AddVersion will succeed if either
     //  - the requested parent version is the latest version; or
     //  - there is no latest version, meaning there are no versions stored for this client
-    Ok(if client.latest_version_id == parent_version_id || client.latest_version_id == NIL_VERSION_ID {
-        GetVersionResult::NotFound
-    } else {
-        GetVersionResult::Gone
-    })
+    Ok(
+        if client.latest_version_id == parent_version_id
+            || client.latest_version_id == NIL_VERSION_ID
+        {
+            GetVersionResult::NotFound
+        } else {
+            GetVersionResult::Gone
+        },
+    )
 }
 
 /// Response to add_version
