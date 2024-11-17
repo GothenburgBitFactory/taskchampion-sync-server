@@ -13,6 +13,12 @@ This repository was spun off from Taskwarrior itself after the 3.0.0
 release. It is still under development and currently best described as
 a reference implementation of the Taskchampion sync protocol.
 
+It is comprised of three crates:
+
+ - `taskchampion-sync-server-core` implements the core of the protocol
+ - `taskchmpaion-sync-server-sqlite` implements an SQLite backend for the core
+ - `taskchampion-sync-server` implements a simple HTTP server for the protocol
+
 ## Installation
 
 ### From binary

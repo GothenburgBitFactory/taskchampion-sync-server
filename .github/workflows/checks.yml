@@ -62,10 +62,23 @@ jobs:
           override: true
           minimal: true
 
-      - uses: actions-rs/cargo@v1.0.3
+      - name: taskchampion-sync-server
+        uses: actions-rs/cargo@v1.0.3
         with:
           command: rustdoc
           args: -p taskchampion-sync-server --all-features -- -Z unstable-options  --check -Dwarnings
+
+      - name: taskchampion-sync-server-core
+        uses: actions-rs/cargo@v1.0.3
+        with:
+          command: rustdoc
+          args: -p taskchampion-sync-server-core --all-features -- -Z unstable-options  --check -Dwarnings
+
+      - name: taskchampion-sync-server-storage-sqlite
+        uses: actions-rs/cargo@v1.0.3
+        with:
+          command: rustdoc
+          args: -p taskchampion-sync-server-storage-sqlite --all-features -- -Z unstable-options  --check -Dwarnings
 
   fmt:
     runs-on: ubuntu-latest

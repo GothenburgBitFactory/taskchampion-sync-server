@@ -1,15 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-#[cfg(debug_assertions)]
-mod inmemory;
-
-#[cfg(debug_assertions)]
-pub use inmemory::InMemoryStorage;
-
-mod sqlite;
-pub use self::sqlite::SqliteStorage;
-
+/// A representation of stored metadata about a client.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Client {
     /// The latest version for this client (may be the nil version)
@@ -18,6 +10,7 @@ pub struct Client {
     pub snapshot: Option<Snapshot>,
 }
 
+/// Metadata about a snapshot, not including the snapshot data itself.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Snapshot {
     /// ID of the version at which this snapshot was made
@@ -32,11 +25,19 @@ pub struct Snapshot {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Version {
+    /// The uuid identifying this version.
     pub version_id: Uuid,
+    /// The uuid identifying this version's parent.
     pub parent_version_id: Uuid,
+    /// The data carried in this version.
     pub history_segment: Vec<u8>,
 }
 
+/// A transaction in the storage backend.
+///
+/// Transactions must be sequentially consistent. That is, the results of transactions performed
+/// in storage must be as if each were executed sequentially in some order. In particular, the
+/// `Client.latest_version` must not change between a call to `get_client` and `add_version`.
 pub trait StorageTxn {
     /// Get information about the given client
     fn get_client(&mut self, client_id: Uuid) -> anyhow::Result<Option<Client>>;

@@ -1,8 +1,8 @@
 use crate::api::{client_id_header, failure_to_ise, ServerState, SNAPSHOT_CONTENT_TYPE};
-use crate::server::{add_snapshot, VersionId, NIL_VERSION_ID};
 use actix_web::{error, post, web, HttpMessage, HttpRequest, HttpResponse, Result};
 use futures::StreamExt;
 use std::sync::Arc;
+use taskchampion_sync_server_core::{add_snapshot, VersionId, NIL_VERSION_ID};
 
 /// Max snapshot size: 100MB
 const MAX_SIZE: usize = 100 * 1024 * 1024;
@@ -77,10 +77,10 @@ pub(crate) async fn service(
 mod test {
     use super::*;
     use crate::api::CLIENT_ID_HEADER;
-    use crate::storage::{InMemoryStorage, Storage};
     use crate::Server;
     use actix_web::{http::StatusCode, test, App};
     use pretty_assertions::assert_eq;
+    use taskchampion_sync_server_core::{InMemoryStorage, Storage};
     use uuid::Uuid;
 
     #[actix_rt::test]

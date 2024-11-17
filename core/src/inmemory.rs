@@ -1,6 +1,7 @@
-use super::{Client, Snapshot, Storage, StorageTxn, Uuid, Version};
+use super::{Client, Snapshot, Storage, StorageTxn, Version};
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
+use uuid::Uuid;
 
 struct Inner {
     /// Clients, indexed by client_id
@@ -16,6 +17,11 @@ struct Inner {
     children: HashMap<(Uuid, Uuid), Uuid>,
 }
 
+/// In-memory storage for testing and experimentation.
+///
+/// This is not for production use, but supports testing of sync server implementations.
+///
+/// NOTE: this does not implement transaction rollback.
 pub struct InMemoryStorage(Mutex<Inner>);
 
 impl InMemoryStorage {
@@ -32,9 +38,6 @@ impl InMemoryStorage {
 
 struct InnerTxn<'a>(MutexGuard<'a, Inner>);
 
-/// In-memory storage for testing and experimentation.
-///
-/// NOTE: this does not implement transaction rollback.
 impl Storage for InMemoryStorage {
     fn txn<'a>(&'a self) -> anyhow::Result<Box<dyn StorageTxn + 'a>> {
         Ok(Box::new(InnerTxn(self.0.lock().expect("poisoned lock"))))
