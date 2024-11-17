@@ -1,11 +1,13 @@
 [package]
 name = "taskchampion-sync-server-storage-sqlite"
-version = "0.4.1"
+version = "0.5.0-pre"
 authors = ["Dustin J. Mitchell <dustin@mozilla.com>"]
 edition = "2021"
+description = "SQLite backend for TaskChampion-sync-server"
+license = "MIT"
 
 [dependencies]
-taskchampion-sync-server-core = { path = "../core" }
+taskchampion-sync-server-core = { path = "../core", version = "0.5.0-pre" }
 uuid.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true

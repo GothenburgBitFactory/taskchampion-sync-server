@@ -1417,7 +1417,7 @@ dependencies = [
 
 [[package]]
 name = "taskchampion-sync-server-core"
-version = "0.4.1"
+version = "0.5.0-pre"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1429,7 +1429,7 @@ dependencies = [
 
 [[package]]
 name = "taskchampion-sync-server-storage-sqlite"
-version = "0.4.1"
+version = "0.5.0-pre"
 dependencies = [
  "anyhow",
  "chrono",

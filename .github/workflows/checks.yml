@@ -97,3 +97,13 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
+
+  semver-checks:
+    runs-on: ubuntu-latest
+    name: "Cargo Semver Checks"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          # exclude the binary package from semver checks, since it is not published as a crate.
+          exclude: taskchampion-sync-server
