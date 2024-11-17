@@ -21,12 +21,6 @@ It is comprised of three crates:
 
 ## Installation
 
-### From binary
-
-Simply download latest release from [releases page][releases].
-
-[releases]: https://github.com/GothenburgBitFactory/taskchampion-sync-server/releases
-
 ### As container
 
 To build the container execute the following commands.
