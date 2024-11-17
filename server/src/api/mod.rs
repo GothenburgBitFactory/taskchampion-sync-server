@@ -1,5 +1,5 @@
 use actix_web::{error, http::StatusCode, web, HttpRequest, Result, Scope};
-use taskchampion_sync_server_core::{ClientId, ServerConfig, Storage};
+use taskchampion_sync_server_core::{ClientId, Server};
 
 mod add_snapshot;
 mod add_version;
@@ -27,8 +27,7 @@ pub(crate) const SNAPSHOT_REQUEST_HEADER: &str = "X-Snapshot-Request";
 
 /// The type containing a reference to the persistent state for the server
 pub(crate) struct ServerState {
-    pub(crate) storage: Box<dyn Storage>,
-    pub(crate) config: ServerConfig,
+    pub(crate) server: Server,
 }
 
 pub(crate) fn api_scope() -> Scope {

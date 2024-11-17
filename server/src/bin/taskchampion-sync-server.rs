@@ -3,7 +3,7 @@
 use actix_web::{middleware::Logger, App, HttpServer};
 use clap::{arg, builder::ValueParser, value_parser, Command};
 use std::ffi::OsString;
-use taskchampion_sync_server::Server;
+use taskchampion_sync_server::WebServer;
 use taskchampion_sync_server_core::ServerConfig;
 use taskchampion_sync_server_storage_sqlite::SqliteStorage;
 
@@ -44,8 +44,11 @@ async fn main() -> anyhow::Result<()> {
     let snapshot_versions: u32 = *matches.get_one("snapshot-versions").unwrap();
     let snapshot_days: i64 = *matches.get_one("snapshot-days").unwrap();
 
-    let config = ServerConfig::from_args(snapshot_days, snapshot_versions)?;
-    let server = Server::new(config, Box::new(SqliteStorage::new(data_dir)?));
+    let config = ServerConfig {
+        snapshot_days,
+        snapshot_versions,
+    };
+    let server = WebServer::new(config, SqliteStorage::new(data_dir)?);
 
     log::info!("Serving on port {}", port);
     HttpServer::new(move || {
@@ -67,7 +70,7 @@ mod test {
 
     #[actix_rt::test]
     async fn test_index_get() {
-        let server = Server::new(Default::default(), Box::new(InMemoryStorage::new()));
+        let server = WebServer::new(Default::default(), InMemoryStorage::new());
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 

@@ -5,9 +5,7 @@ use crate::api::{
 use actix_web::{error, post, web, HttpMessage, HttpRequest, HttpResponse, Result};
 use futures::StreamExt;
 use std::sync::Arc;
-use taskchampion_sync_server_core::{
-    add_version, AddVersionResult, SnapshotUrgency, VersionId, NIL_VERSION_ID,
-};
+use taskchampion_sync_server_core::{AddVersionResult, SnapshotUrgency, VersionId, NIL_VERSION_ID};
 
 /// Max history segment size: 100MB
 const MAX_SIZE: usize = 100 * 1024 * 1024;
@@ -59,27 +57,23 @@ pub(crate) async fn service(
     // note that we do not open the transaction until the body has been read
     // completely, to avoid blocking other storage access while that data is
     // in transit.
-    let mut txn = server_state.storage.txn().map_err(failure_to_ise)?;
+    let client = {
+        let mut txn = server_state.server.txn().map_err(failure_to_ise)?;
 
-    // get, or create, the client
-    let client = match txn.get_client(client_id).map_err(failure_to_ise)? {
-        Some(client) => client,
-        None => {
-            txn.new_client(client_id, NIL_VERSION_ID)
-                .map_err(failure_to_ise)?;
-            txn.get_client(client_id).map_err(failure_to_ise)?.unwrap()
+        match txn.get_client(client_id).map_err(failure_to_ise)? {
+            Some(client) => client,
+            None => {
+                txn.new_client(client_id, NIL_VERSION_ID)
+                    .map_err(failure_to_ise)?;
+                txn.get_client(client_id).map_err(failure_to_ise)?.unwrap()
+            }
         }
     };
 
-    let (result, snap_urgency) = add_version(
-        txn,
-        &server_state.config,
-        client_id,
-        client,
-        parent_version_id,
-        body.to_vec(),
-    )
-    .map_err(failure_to_ise)?;
+    let (result, snap_urgency) = server_state
+        .server
+        .add_version(client_id, client, parent_version_id, body.to_vec())
+        .map_err(failure_to_ise)?;
 
     Ok(match result {
         AddVersionResult::Ok(version_id) => {
@@ -107,7 +101,7 @@ pub(crate) async fn service(
 #[cfg(test)]
 mod test {
     use crate::api::CLIENT_ID_HEADER;
-    use crate::Server;
+    use crate::WebServer;
     use actix_web::{http::StatusCode, test, App};
     use pretty_assertions::assert_eq;
     use taskchampion_sync_server_core::{InMemoryStorage, Storage};
@@ -118,7 +112,7 @@ mod test {
         let client_id = Uuid::new_v4();
         let version_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
-        let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
+        let storage = InMemoryStorage::new();
 
         // set up the storage contents..
         {
@@ -126,7 +120,7 @@ mod test {
             txn.new_client(client_id, Uuid::nil()).unwrap();
         }
 
-        let server = Server::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -160,7 +154,7 @@ mod test {
         let client_id = Uuid::new_v4();
         let version_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
-        let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
+        let storage = InMemoryStorage::new();
 
         // set up the storage contents..
         {
@@ -168,7 +162,7 @@ mod test {
             txn.new_client(client_id, version_id).unwrap();
         }
 
-        let server = Server::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -195,8 +189,8 @@ mod test {
     async fn test_bad_content_type() {
         let client_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
-        let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
-        let server = Server::new(Default::default(), storage);
+        let storage = InMemoryStorage::new();
+        let server = WebServer::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -215,8 +209,8 @@ mod test {
     async fn test_empty_body() {
         let client_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
-        let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
-        let server = Server::new(Default::default(), storage);
+        let storage = InMemoryStorage::new();
+        let server = WebServer::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
