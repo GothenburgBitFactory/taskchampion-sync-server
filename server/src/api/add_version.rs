@@ -2,10 +2,12 @@ use crate::api::{
     client_id_header, failure_to_ise, ServerState, HISTORY_SEGMENT_CONTENT_TYPE,
     PARENT_VERSION_ID_HEADER, SNAPSHOT_REQUEST_HEADER, VERSION_ID_HEADER,
 };
-use crate::server::{add_version, AddVersionResult, SnapshotUrgency, VersionId, NIL_VERSION_ID};
 use actix_web::{error, post, web, HttpMessage, HttpRequest, HttpResponse, Result};
 use futures::StreamExt;
 use std::sync::Arc;
+use taskchampion_sync_server_core::{
+    add_version, AddVersionResult, SnapshotUrgency, VersionId, NIL_VERSION_ID,
+};
 
 /// Max history segment size: 100MB
 const MAX_SIZE: usize = 100 * 1024 * 1024;
@@ -105,10 +107,10 @@ pub(crate) async fn service(
 #[cfg(test)]
 mod test {
     use crate::api::CLIENT_ID_HEADER;
-    use crate::storage::{InMemoryStorage, Storage};
     use crate::Server;
     use actix_web::{http::StatusCode, test, App};
     use pretty_assertions::assert_eq;
+    use taskchampion_sync_server_core::{InMemoryStorage, Storage};
     use uuid::Uuid;
 
     #[actix_rt::test]

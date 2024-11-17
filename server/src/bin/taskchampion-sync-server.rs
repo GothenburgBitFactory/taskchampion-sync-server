@@ -3,8 +3,9 @@
 use actix_web::{middleware::Logger, App, HttpServer};
 use clap::{arg, builder::ValueParser, value_parser, Command};
 use std::ffi::OsString;
-use taskchampion_sync_server::storage::SqliteStorage;
-use taskchampion_sync_server::{Server, ServerConfig};
+use taskchampion_sync_server::Server;
+use taskchampion_sync_server_core::ServerConfig;
+use taskchampion_sync_server_storage_sqlite::SqliteStorage;
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
@@ -62,7 +63,7 @@ async fn main() -> anyhow::Result<()> {
 mod test {
     use super::*;
     use actix_web::{test, App};
-    use taskchampion_sync_server::storage::InMemoryStorage;
+    use taskchampion_sync_server_core::InMemoryStorage;
 
     #[actix_rt::test]
     async fn test_index_get() {

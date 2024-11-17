@@ -1,9 +1,9 @@
 use crate::api::{
     client_id_header, failure_to_ise, ServerState, SNAPSHOT_CONTENT_TYPE, VERSION_ID_HEADER,
 };
-use crate::server::get_snapshot;
 use actix_web::{error, get, web, HttpRequest, HttpResponse, Result};
 use std::sync::Arc;
+use taskchampion_sync_server_core::get_snapshot;
 
 /// Get a snapshot.
 ///
@@ -42,11 +42,11 @@ pub(crate) async fn service(
 #[cfg(test)]
 mod test {
     use crate::api::CLIENT_ID_HEADER;
-    use crate::storage::{InMemoryStorage, Snapshot, Storage};
     use crate::Server;
     use actix_web::{http::StatusCode, test, App};
     use chrono::{TimeZone, Utc};
     use pretty_assertions::assert_eq;
+    use taskchampion_sync_server_core::{InMemoryStorage, Snapshot, Storage};
     use uuid::Uuid;
 
     #[actix_rt::test]

@@ -1,9 +1,11 @@
-use super::{Client, Snapshot, Storage, StorageTxn, Uuid, Version};
+//! Tihs crate implements a SQLite storage backend for the TaskChampion sync server.
 use anyhow::Context;
 use chrono::{TimeZone, Utc};
 use rusqlite::types::{FromSql, ToSql};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::path::Path;
+use taskchampion_sync_server_core::{Client, Snapshot, Storage, StorageTxn, Version};
+use uuid::Uuid;
 
 #[derive(Debug, thiserror::Error)]
 enum SqliteError {
@@ -31,7 +33,7 @@ impl ToSql for StoredUuid {
     }
 }
 
-/// An on-disk storage backend which uses SQLite
+/// An on-disk storage backend which uses SQLite.
 pub struct SqliteStorage {
     db_file: std::path::PathBuf,
 }
@@ -41,6 +43,10 @@ impl SqliteStorage {
         Ok(Connection::open(&self.db_file)?)
     }
 
+    /// Create a new instance using a database at the given directory.
+    ///
+    /// The database will be stored in a file named `taskchampion-sync-server.sqlite3` in the given
+    /// directory.
     pub fn new<P: AsRef<Path>>(directory: P) -> anyhow::Result<SqliteStorage> {
         std::fs::create_dir_all(&directory)
             .with_context(|| format!("Failed to create `{}`.", directory.as_ref().display()))?;

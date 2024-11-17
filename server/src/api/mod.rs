@@ -1,7 +1,5 @@
-use crate::server::ClientId;
-use crate::storage::Storage;
-use crate::ServerConfig;
 use actix_web::{error, http::StatusCode, web, HttpRequest, Result, Scope};
+use taskchampion_sync_server_core::{ClientId, ServerConfig, Storage};
 
 mod add_snapshot;
 mod add_version;

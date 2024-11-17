@@ -1,15 +1,11 @@
 #![deny(clippy::all)]
 
 mod api;
-mod server;
-pub mod storage;
 
-use crate::storage::Storage;
 use actix_web::{get, middleware, web, Responder};
 use api::{api_scope, ServerState};
 use std::sync::Arc;
-
-pub use server::ServerConfig;
+use taskchampion_sync_server_core::{ServerConfig, Storage};
 
 #[get("/")]
 async fn index() -> impl Responder {
@@ -47,13 +43,9 @@ impl Server {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::storage::InMemoryStorage;
     use actix_web::{test, App};
     use pretty_assertions::assert_eq;
-
-    pub(crate) fn init_logging() {
-        let _ = env_logger::builder().is_test(true).try_init();
-    }
+    use taskchampion_sync_server_core::InMemoryStorage;
 
     #[actix_rt::test]
     async fn test_cache_control() {

@@ -2,9 +2,9 @@ use crate::api::{
     client_id_header, failure_to_ise, ServerState, HISTORY_SEGMENT_CONTENT_TYPE,
     PARENT_VERSION_ID_HEADER, VERSION_ID_HEADER,
 };
-use crate::server::{get_child_version, GetVersionResult, VersionId};
 use actix_web::{error, get, web, HttpRequest, HttpResponse, Result};
 use std::sync::Arc;
+use taskchampion_sync_server_core::{get_child_version, GetVersionResult, VersionId};
 
 /// Get a child version.
 ///
@@ -57,11 +57,10 @@ pub(crate) async fn service(
 #[cfg(test)]
 mod test {
     use crate::api::CLIENT_ID_HEADER;
-    use crate::server::NIL_VERSION_ID;
-    use crate::storage::{InMemoryStorage, Storage};
     use crate::Server;
     use actix_web::{http::StatusCode, test, App};
     use pretty_assertions::assert_eq;
+    use taskchampion_sync_server_core::{InMemoryStorage, Storage, NIL_VERSION_ID};
     use uuid::Uuid;
 
     #[actix_rt::test]

@@ -1,0 +1,17 @@
+[package]
+name = "taskchampion-sync-server-storage-sqlite"
+version = "0.4.1"
+authors = ["Dustin J. Mitchell <dustin@mozilla.com>"]
+edition = "2021"
+
+[dependencies]
+taskchampion-sync-server-core = { path = "../core" }
+uuid.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+rusqlite.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+pretty_assertions.workspace = true

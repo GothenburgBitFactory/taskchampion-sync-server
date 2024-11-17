@@ -1,0 +1,15 @@
+[package]
+name = "taskchampion-sync-server-core"
+version = "0.4.1"
+authors = ["Dustin J. Mitchell <dustin@mozilla.com>"]
+edition = "2021"
+
+[dependencies]
+uuid.workspace = true
+anyhow.workspace = true
+log.workspace = true
+env_logger.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true

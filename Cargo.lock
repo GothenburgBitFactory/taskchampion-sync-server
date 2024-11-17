@@ -687,9 +687,9 @@ dependencies = [
 
 [[package]]
 name = "futures-io"
-version = "0.3.30"
+version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a44623e20b9681a318efdd71c299b6b222ed6f231972bfe2f224ebad6311f0c1"
+checksum = "9e5c1b78ca4aae1ac06c48a526a655760685149f0d465d21f37abfe57ce075c6"
 
 [[package]]
 name = "futures-macro"
@@ -1406,9 +1406,36 @@ dependencies = [
  "futures",
  "log",
  "pretty_assertions",
- "rusqlite",
  "serde",
  "serde_json",
+ "taskchampion-sync-server-core",
+ "taskchampion-sync-server-storage-sqlite",
+ "tempfile",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
+name = "taskchampion-sync-server-core"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "env_logger",
+ "log",
+ "pretty_assertions",
+ "uuid",
+]
+
+[[package]]
+name = "taskchampion-sync-server-storage-sqlite"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "pretty_assertions",
+ "rusqlite",
+ "taskchampion-sync-server-core",
  "tempfile",
  "thiserror",
  "uuid",
@@ -1429,18 +1456,18 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.0"
+version = "2.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15291287e9bff1bc6f9ff3409ed9af665bec7a5fc8ac079ea96be07bca0e2668"
+checksum = "c006c85c7651b3cf2ada4584faa36773bd07bac24acfb39f3c431b36d7e667aa"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.0"
+version = "2.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22efd00f33f93fa62848a7cab956c3d38c8d43095efda1decfc2b3a5dc0b8972"
+checksum = "f077553d607adc1caf65430528a576c757a71ed73944b66ebb58ef2bbd243568"
 dependencies = [
  "proc-macro2",
  "quote",
