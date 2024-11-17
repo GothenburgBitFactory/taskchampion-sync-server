@@ -1,8 +1,10 @@
 [package]
 name = "taskchampion-sync-server-core"
-version = "0.4.1"
+version = "0.5.0-pre"
 authors = ["Dustin J. Mitchell <dustin@mozilla.com>"]
 edition = "2021"
+description = "Core of sync protocol for TaskChampion"
+license = "MIT"
 
 [dependencies]
 uuid.workspace = true
