@@ -6,7 +6,9 @@ use crate::api::{
 use actix_web::{error, post, web, HttpMessage, HttpRequest, HttpResponse, Result};
 use futures::StreamExt;
 use std::sync::Arc;
-use taskchampion_sync_server_core::{AddVersionResult, SnapshotUrgency, VersionId, NIL_VERSION_ID};
+use taskchampion_sync_server_core::{
+    AddVersionResult, ServerError, SnapshotUrgency, VersionId, NIL_VERSION_ID,
+};
 
 /// Max history segment size: 100MB
 const MAX_SIZE: usize = 100 * 1024 * 1024;
@@ -55,48 +57,41 @@ pub(crate) async fn service(
         return Err(error::ErrorBadRequest("Empty body"));
     }
 
-    // note that we do not open the transaction until the body has been read
-    // completely, to avoid blocking other storage access while that data is
-    // in transit.
-    let client = {
-        let mut txn = server_state.server.txn().map_err(server_error_to_actix)?;
-
-        match txn.get_client(client_id).map_err(failure_to_ise)? {
-            Some(client) => client,
-            None => {
+    loop {
+        return match server_state
+            .server
+            .add_version(client_id, parent_version_id, body.to_vec())
+        {
+            Ok((AddVersionResult::Ok(version_id), snap_urgency)) => {
+                let mut rb = HttpResponse::Ok();
+                rb.append_header((VERSION_ID_HEADER, version_id.to_string()));
+                match snap_urgency {
+                    SnapshotUrgency::None => {}
+                    SnapshotUrgency::Low => {
+                        rb.append_header((SNAPSHOT_REQUEST_HEADER, "urgency=low"));
+                    }
+                    SnapshotUrgency::High => {
+                        rb.append_header((SNAPSHOT_REQUEST_HEADER, "urgency=high"));
+                    }
+                };
+                Ok(rb.finish())
+            }
+            Ok((AddVersionResult::ExpectedParentVersion(parent_version_id), _)) => {
+                let mut rb = HttpResponse::Conflict();
+                rb.append_header((PARENT_VERSION_ID_HEADER, parent_version_id.to_string()));
+                Ok(rb.finish())
+            }
+            Err(ServerError::NoSuchClient) => {
+                // Create a new client and repeate the `add_version` call.
+                let mut txn = server_state.server.txn().map_err(server_error_to_actix)?;
                 txn.new_client(client_id, NIL_VERSION_ID)
                     .map_err(failure_to_ise)?;
-                txn.get_client(client_id).map_err(failure_to_ise)?.unwrap()
+                txn.commit().map_err(failure_to_ise)?;
+                continue;
             }
-        }
-    };
-
-    let (result, snap_urgency) = server_state
-        .server
-        .add_version(client_id, client, parent_version_id, body.to_vec())
-        .map_err(server_error_to_actix)?;
-
-    Ok(match result {
-        AddVersionResult::Ok(version_id) => {
-            let mut rb = HttpResponse::Ok();
-            rb.append_header((VERSION_ID_HEADER, version_id.to_string()));
-            match snap_urgency {
-                SnapshotUrgency::None => {}
-                SnapshotUrgency::Low => {
-                    rb.append_header((SNAPSHOT_REQUEST_HEADER, "urgency=low"));
-                }
-                SnapshotUrgency::High => {
-                    rb.append_header((SNAPSHOT_REQUEST_HEADER, "urgency=high"));
-                }
-            };
-            rb.finish()
-        }
-        AddVersionResult::ExpectedParentVersion(parent_version_id) => {
-            let mut rb = HttpResponse::Conflict();
-            rb.append_header((PARENT_VERSION_ID_HEADER, parent_version_id.to_string()));
-            rb.finish()
-        }
-    })
+            Err(e) => Err(server_error_to_actix(e)),
+        };
+    }
 }
 
 #[cfg(test)]
@@ -148,6 +143,49 @@ mod test {
         assert_eq!(snapshot_request, "urgency=high");
 
         assert_eq!(resp.headers().get("X-Parent-Version-Id"), None);
+    }
+
+    #[actix_rt::test]
+    async fn test_auto_add_client() {
+        let client_id = Uuid::new_v4();
+        let version_id = Uuid::new_v4();
+        let parent_version_id = Uuid::new_v4();
+        let server = WebServer::new(Default::default(), InMemoryStorage::new());
+        let app = App::new().configure(|sc| server.config(sc));
+        let app = test::init_service(app).await;
+
+        let uri = format!("/v1/client/add-version/{}", parent_version_id);
+        let req = test::TestRequest::post()
+            .uri(&uri)
+            .append_header((
+                "Content-Type",
+                "application/vnd.taskchampion.history-segment",
+            ))
+            .append_header((CLIENT_ID_HEADER, client_id.to_string()))
+            .set_payload(b"abcd".to_vec())
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // the returned version ID is random, but let's check that it's not
+        // the passed parent version ID, at least
+        let new_version_id = resp.headers().get("X-Version-Id").unwrap();
+        let new_version_id = Uuid::parse_str(new_version_id.to_str().unwrap()).unwrap();
+        assert!(new_version_id != version_id);
+
+        // Shapshot should be requested, since there is no existing snapshot
+        let snapshot_request = resp.headers().get("X-Snapshot-Request").unwrap();
+        assert_eq!(snapshot_request, "urgency=high");
+
+        assert_eq!(resp.headers().get("X-Parent-Version-Id"), None);
+
+        // Check that the client really was created
+        {
+            let mut txn = server.server_state.server.txn().unwrap();
+            let client = txn.get_client(client_id).unwrap().unwrap();
+            assert_eq!(client.latest_version_id, new_version_id);
+            assert_eq!(client.snapshot, None);
+        }
     }
 
     #[actix_rt::test]

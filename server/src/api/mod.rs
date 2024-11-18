@@ -1,4 +1,4 @@
-use actix_web::{error, http::StatusCode, web, HttpRequest, Result, Scope};
+use actix_web::{error, web, HttpRequest, Result, Scope};
 use taskchampion_sync_server_core::{ClientId, Server, ServerError};
 
 mod add_snapshot;
@@ -38,9 +38,9 @@ pub(crate) fn api_scope() -> Scope {
         .service(add_snapshot::service)
 }
 
-/// Convert a failure::Error to an Actix ISE
-fn failure_to_ise(err: anyhow::Error) -> impl actix_web::ResponseError {
-    error::InternalError::new(err, StatusCode::INTERNAL_SERVER_ERROR)
+/// Convert a `anyhow::Error` to an Actix ISE
+fn failure_to_ise(err: anyhow::Error) -> actix_web::Error {
+    error::ErrorInternalServerError(err)
 }
 
 /// Convert a ServerError to an Actix error

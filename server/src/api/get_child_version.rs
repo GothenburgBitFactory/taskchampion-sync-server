@@ -1,10 +1,10 @@
 use crate::api::{
-    client_id_header, failure_to_ise, server_error_to_actix, ServerState,
-    HISTORY_SEGMENT_CONTENT_TYPE, PARENT_VERSION_ID_HEADER, VERSION_ID_HEADER,
+    client_id_header, server_error_to_actix, ServerState, HISTORY_SEGMENT_CONTENT_TYPE,
+    PARENT_VERSION_ID_HEADER, VERSION_ID_HEADER,
 };
 use actix_web::{error, get, web, HttpRequest, HttpResponse, Result};
 use std::sync::Arc;
-use taskchampion_sync_server_core::{GetVersionResult, VersionId};
+use taskchampion_sync_server_core::{GetVersionResult, ServerError, VersionId};
 
 /// Get a child version.
 ///
@@ -21,35 +21,28 @@ pub(crate) async fn service(
     path: web::Path<VersionId>,
 ) -> Result<HttpResponse> {
     let parent_version_id = path.into_inner();
-
-    let (client, client_id) = {
-        let mut txn = server_state.server.txn().map_err(server_error_to_actix)?;
-
-        let client_id = client_id_header(&req)?;
-
-        let client = txn
-            .get_client(client_id)
-            .map_err(failure_to_ise)?
-            .ok_or_else(|| error::ErrorNotFound("no such client"))?;
-        (client, client_id)
-    };
+    let client_id = client_id_header(&req)?;
 
     return match server_state
         .server
-        .get_child_version(client_id, client, parent_version_id)
-        .map_err(server_error_to_actix)?
+        .get_child_version(client_id, parent_version_id)
     {
-        GetVersionResult::Success {
+        Ok(GetVersionResult::Success {
             version_id,
             parent_version_id,
             history_segment,
-        } => Ok(HttpResponse::Ok()
+        }) => Ok(HttpResponse::Ok()
             .content_type(HISTORY_SEGMENT_CONTENT_TYPE)
             .append_header((VERSION_ID_HEADER, version_id.to_string()))
             .append_header((PARENT_VERSION_ID_HEADER, parent_version_id.to_string()))
             .body(history_segment)),
-        GetVersionResult::NotFound => Err(error::ErrorNotFound("no such version")),
-        GetVersionResult::Gone => Err(error::ErrorGone("version has been deleted")),
+        Ok(GetVersionResult::NotFound) => Err(error::ErrorNotFound("no such version")),
+        Ok(GetVersionResult::Gone) => Err(error::ErrorGone("version has been deleted")),
+        // Note that the HTTP client cannot differentiate `NotFound` and `NoSuchClient`, as both
+        // are a 404 NOT FOUND response. In either case, the HTTP client will typically attempt
+        // to add a new version, which may create the new client at the same time.
+        Err(ServerError::NoSuchClient) => Err(error::ErrorNotFound("no such client")),
+        Err(e) => Err(server_error_to_actix(e)),
     };
 }
 

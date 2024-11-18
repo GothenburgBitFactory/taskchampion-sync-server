@@ -1,10 +1,8 @@
-use crate::api::{
-    client_id_header, failure_to_ise, server_error_to_actix, ServerState, SNAPSHOT_CONTENT_TYPE,
-};
+use crate::api::{client_id_header, server_error_to_actix, ServerState, SNAPSHOT_CONTENT_TYPE};
 use actix_web::{error, post, web, HttpMessage, HttpRequest, HttpResponse, Result};
 use futures::StreamExt;
 use std::sync::Arc;
-use taskchampion_sync_server_core::{VersionId, NIL_VERSION_ID};
+use taskchampion_sync_server_core::VersionId;
 
 /// Max snapshot size: 100MB
 const MAX_SIZE: usize = 100 * 1024 * 1024;
@@ -48,38 +46,20 @@ pub(crate) async fn service(
         return Err(error::ErrorBadRequest("No snapshot supplied"));
     }
 
-    // note that we do not open the transaction until the body has been read
-    // completely, to avoid blocking other storage access while that data is
-    // in transit.
-    let client = {
-        let mut txn = server_state.server.txn().map_err(server_error_to_actix)?;
-
-        // get, or create, the client
-        match txn.get_client(client_id).map_err(failure_to_ise)? {
-            Some(client) => client,
-            None => {
-                txn.new_client(client_id, NIL_VERSION_ID)
-                    .map_err(failure_to_ise)?;
-                txn.get_client(client_id).map_err(failure_to_ise)?.unwrap()
-            }
-        }
-    };
-
     server_state
         .server
-        .add_snapshot(client_id, client, version_id, body.to_vec())
+        .add_snapshot(client_id, version_id, body.to_vec())
         .map_err(server_error_to_actix)?;
     Ok(HttpResponse::Ok().body(""))
 }
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::api::CLIENT_ID_HEADER;
     use crate::WebServer;
     use actix_web::{http::StatusCode, test, App};
     use pretty_assertions::assert_eq;
-    use taskchampion_sync_server_core::{InMemoryStorage, Storage};
+    use taskchampion_sync_server_core::{InMemoryStorage, Storage, NIL_VERSION_ID};
     use uuid::Uuid;
 
     #[actix_rt::test]
