@@ -1,5 +1,5 @@
 use actix_web::{error, http::StatusCode, web, HttpRequest, Result, Scope};
-use taskchampion_sync_server_core::{ClientId, Server};
+use taskchampion_sync_server_core::{ClientId, Server, ServerError};
 
 mod add_snapshot;
 mod add_version;
@@ -41,6 +41,14 @@ pub(crate) fn api_scope() -> Scope {
 /// Convert a failure::Error to an Actix ISE
 fn failure_to_ise(err: anyhow::Error) -> impl actix_web::ResponseError {
     error::InternalError::new(err, StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+/// Convert a ServerError to an Actix error
+fn server_error_to_actix(err: ServerError) -> actix_web::Error {
+    match err {
+        ServerError::NoSuchClient => error::ErrorNotFound(err),
+        ServerError::Other(err) => error::ErrorInternalServerError(err),
+    }
 }
 
 /// Get the client id

@@ -1,6 +1,6 @@
 use crate::api::{
-    client_id_header, failure_to_ise, ServerState, HISTORY_SEGMENT_CONTENT_TYPE,
-    PARENT_VERSION_ID_HEADER, VERSION_ID_HEADER,
+    client_id_header, failure_to_ise, server_error_to_actix, ServerState,
+    HISTORY_SEGMENT_CONTENT_TYPE, PARENT_VERSION_ID_HEADER, VERSION_ID_HEADER,
 };
 use actix_web::{error, get, web, HttpRequest, HttpResponse, Result};
 use std::sync::Arc;
@@ -23,7 +23,7 @@ pub(crate) async fn service(
     let parent_version_id = path.into_inner();
 
     let (client, client_id) = {
-        let mut txn = server_state.server.txn().map_err(failure_to_ise)?;
+        let mut txn = server_state.server.txn().map_err(server_error_to_actix)?;
 
         let client_id = client_id_header(&req)?;
 
@@ -37,7 +37,7 @@ pub(crate) async fn service(
     return match server_state
         .server
         .get_child_version(client_id, client, parent_version_id)
-        .map_err(failure_to_ise)?
+        .map_err(server_error_to_actix)?
     {
         GetVersionResult::Success {
             version_id,

@@ -1,3 +1,4 @@
+use crate::error::ServerError;
 use crate::storage::{Client, Snapshot, Storage, StorageTxn};
 use chrono::Utc;
 use uuid::Uuid;
@@ -110,7 +111,7 @@ impl Server {
         client_id: ClientId,
         client: Client,
         parent_version_id: VersionId,
-    ) -> anyhow::Result<GetVersionResult> {
+    ) -> Result<GetVersionResult, ServerError> {
         let mut txn = self.storage.txn()?;
 
         // If a version with parentVersionId equal to the requested parentVersionId exists, it is
@@ -147,7 +148,7 @@ impl Server {
         client: Client,
         parent_version_id: VersionId,
         history_segment: HistorySegment,
-    ) -> anyhow::Result<(AddVersionResult, SnapshotUrgency)> {
+    ) -> Result<(AddVersionResult, SnapshotUrgency), ServerError> {
         let mut txn = self.storage.txn()?;
 
         log::debug!(
@@ -206,7 +207,7 @@ impl Server {
         client: Client,
         version_id: VersionId,
         data: Vec<u8>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), ServerError> {
         let mut txn = self.storage.txn()?;
 
         log::debug!(
@@ -290,7 +291,7 @@ impl Server {
         &self,
         client_id: ClientId,
         client: Client,
-    ) -> anyhow::Result<Option<(Uuid, Vec<u8>)>> {
+    ) -> Result<Option<(Uuid, Vec<u8>)>, ServerError> {
         let mut txn = self.storage.txn()?;
 
         Ok(if let Some(snap) = client.snapshot {
@@ -302,8 +303,8 @@ impl Server {
     }
 
     /// Convenience method to get a transaction for the embedded storage.
-    pub fn txn(&self) -> anyhow::Result<Box<dyn StorageTxn + '_>> {
-        self.storage.txn()
+    pub fn txn(&self) -> Result<Box<dyn StorageTxn + '_>, ServerError> {
+        Ok(self.storage.txn()?)
     }
 }
 

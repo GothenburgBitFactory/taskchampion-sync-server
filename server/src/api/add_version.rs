@@ -1,6 +1,7 @@
 use crate::api::{
-    client_id_header, failure_to_ise, ServerState, HISTORY_SEGMENT_CONTENT_TYPE,
-    PARENT_VERSION_ID_HEADER, SNAPSHOT_REQUEST_HEADER, VERSION_ID_HEADER,
+    client_id_header, failure_to_ise, server_error_to_actix, ServerState,
+    HISTORY_SEGMENT_CONTENT_TYPE, PARENT_VERSION_ID_HEADER, SNAPSHOT_REQUEST_HEADER,
+    VERSION_ID_HEADER,
 };
 use actix_web::{error, post, web, HttpMessage, HttpRequest, HttpResponse, Result};
 use futures::StreamExt;
@@ -58,7 +59,7 @@ pub(crate) async fn service(
     // completely, to avoid blocking other storage access while that data is
     // in transit.
     let client = {
-        let mut txn = server_state.server.txn().map_err(failure_to_ise)?;
+        let mut txn = server_state.server.txn().map_err(server_error_to_actix)?;
 
         match txn.get_client(client_id).map_err(failure_to_ise)? {
             Some(client) => client,
@@ -73,7 +74,7 @@ pub(crate) async fn service(
     let (result, snap_urgency) = server_state
         .server
         .add_version(client_id, client, parent_version_id, body.to_vec())
-        .map_err(failure_to_ise)?;
+        .map_err(server_error_to_actix)?;
 
     Ok(match result {
         AddVersionResult::Ok(version_id) => {

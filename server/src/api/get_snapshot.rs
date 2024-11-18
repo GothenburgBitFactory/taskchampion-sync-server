@@ -1,5 +1,6 @@
 use crate::api::{
-    client_id_header, failure_to_ise, ServerState, SNAPSHOT_CONTENT_TYPE, VERSION_ID_HEADER,
+    client_id_header, failure_to_ise, server_error_to_actix, ServerState, SNAPSHOT_CONTENT_TYPE,
+    VERSION_ID_HEADER,
 };
 use actix_web::{error, get, web, HttpRequest, HttpResponse, Result};
 use std::sync::Arc;
@@ -20,7 +21,7 @@ pub(crate) async fn service(
     let client_id = client_id_header(&req)?;
 
     let client = {
-        let mut txn = server_state.server.txn().map_err(failure_to_ise)?;
+        let mut txn = server_state.server.txn().map_err(server_error_to_actix)?;
         txn.get_client(client_id)
             .map_err(failure_to_ise)?
             .ok_or_else(|| error::ErrorNotFound("no such client"))?
@@ -29,7 +30,7 @@ pub(crate) async fn service(
     if let Some((version_id, data)) = server_state
         .server
         .get_snapshot(client_id, client)
-        .map_err(failure_to_ise)?
+        .map_err(server_error_to_actix)?
     {
         Ok(HttpResponse::Ok()
             .content_type(SNAPSHOT_CONTENT_TYPE)

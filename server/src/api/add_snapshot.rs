@@ -1,4 +1,6 @@
-use crate::api::{client_id_header, failure_to_ise, ServerState, SNAPSHOT_CONTENT_TYPE};
+use crate::api::{
+    client_id_header, failure_to_ise, server_error_to_actix, ServerState, SNAPSHOT_CONTENT_TYPE,
+};
 use actix_web::{error, post, web, HttpMessage, HttpRequest, HttpResponse, Result};
 use futures::StreamExt;
 use std::sync::Arc;
@@ -50,7 +52,7 @@ pub(crate) async fn service(
     // completely, to avoid blocking other storage access while that data is
     // in transit.
     let client = {
-        let mut txn = server_state.server.txn().map_err(failure_to_ise)?;
+        let mut txn = server_state.server.txn().map_err(server_error_to_actix)?;
 
         // get, or create, the client
         match txn.get_client(client_id).map_err(failure_to_ise)? {
@@ -66,7 +68,7 @@ pub(crate) async fn service(
     server_state
         .server
         .add_snapshot(client_id, client, version_id, body.to_vec())
-        .map_err(failure_to_ise)?;
+        .map_err(server_error_to_actix)?;
     Ok(HttpResponse::Ok().body(""))
 }
 

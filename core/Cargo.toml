@@ -9,6 +9,7 @@ license = "MIT"
 [dependencies]
 uuid.workspace = true
 anyhow.workspace = true
+thiserror.workspace = true
 log.workspace = true
 env_logger.workspace = true
 chrono.workspace = true

@@ -23,10 +23,12 @@
 //! * [`ServerConfig`] providing basic configuration for the server's behavior.
 //! * `client_id` and a [`Client`] providing the client metadata.
 
+mod error;
 mod inmemory;
 mod server;
 mod storage;
 
+pub use error::*;
 pub use inmemory::*;
 pub use server::*;
 pub use storage::*;
