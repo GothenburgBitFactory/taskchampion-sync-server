@@ -1,5 +1,5 @@
-use actix_web::{error, http::StatusCode, web, HttpRequest, Result, Scope};
-use taskchampion_sync_server_core::{ClientId, ServerConfig, Storage};
+use actix_web::{error, web, HttpRequest, Result, Scope};
+use taskchampion_sync_server_core::{ClientId, Server, ServerError};
 
 mod add_snapshot;
 mod add_version;
@@ -27,8 +27,7 @@ pub(crate) const SNAPSHOT_REQUEST_HEADER: &str = "X-Snapshot-Request";
 
 /// The type containing a reference to the persistent state for the server
 pub(crate) struct ServerState {
-    pub(crate) storage: Box<dyn Storage>,
-    pub(crate) config: ServerConfig,
+    pub(crate) server: Server,
 }
 
 pub(crate) fn api_scope() -> Scope {
@@ -39,9 +38,17 @@ pub(crate) fn api_scope() -> Scope {
         .service(add_snapshot::service)
 }
 
-/// Convert a failure::Error to an Actix ISE
-fn failure_to_ise(err: anyhow::Error) -> impl actix_web::ResponseError {
-    error::InternalError::new(err, StatusCode::INTERNAL_SERVER_ERROR)
+/// Convert a `anyhow::Error` to an Actix ISE
+fn failure_to_ise(err: anyhow::Error) -> actix_web::Error {
+    error::ErrorInternalServerError(err)
+}
+
+/// Convert a ServerError to an Actix error
+fn server_error_to_actix(err: ServerError) -> actix_web::Error {
+    match err {
+        ServerError::NoSuchClient => error::ErrorNotFound(err),
+        ServerError::Other(err) => error::ErrorInternalServerError(err),
+    }
 }
 
 /// Get the client id

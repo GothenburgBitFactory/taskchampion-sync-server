@@ -1,9 +1,8 @@
 use crate::api::{
-    client_id_header, failure_to_ise, ServerState, SNAPSHOT_CONTENT_TYPE, VERSION_ID_HEADER,
+    client_id_header, server_error_to_actix, ServerState, SNAPSHOT_CONTENT_TYPE, VERSION_ID_HEADER,
 };
 use actix_web::{error, get, web, HttpRequest, HttpResponse, Result};
 use std::sync::Arc;
-use taskchampion_sync_server_core::get_snapshot;
 
 /// Get a snapshot.
 ///
@@ -18,17 +17,12 @@ pub(crate) async fn service(
     req: HttpRequest,
     server_state: web::Data<Arc<ServerState>>,
 ) -> Result<HttpResponse> {
-    let mut txn = server_state.storage.txn().map_err(failure_to_ise)?;
-
     let client_id = client_id_header(&req)?;
 
-    let client = txn
-        .get_client(client_id)
-        .map_err(failure_to_ise)?
-        .ok_or_else(|| error::ErrorNotFound("no such client"))?;
-
-    if let Some((version_id, data)) =
-        get_snapshot(txn, &server_state.config, client_id, client).map_err(failure_to_ise)?
+    if let Some((version_id, data)) = server_state
+        .server
+        .get_snapshot(client_id)
+        .map_err(server_error_to_actix)?
     {
         Ok(HttpResponse::Ok()
             .content_type(SNAPSHOT_CONTENT_TYPE)
@@ -42,7 +36,7 @@ pub(crate) async fn service(
 #[cfg(test)]
 mod test {
     use crate::api::CLIENT_ID_HEADER;
-    use crate::Server;
+    use crate::WebServer;
     use actix_web::{http::StatusCode, test, App};
     use chrono::{TimeZone, Utc};
     use pretty_assertions::assert_eq;
@@ -52,7 +46,7 @@ mod test {
     #[actix_rt::test]
     async fn test_not_found() {
         let client_id = Uuid::new_v4();
-        let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
+        let storage = InMemoryStorage::new();
 
         // set up the storage contents..
         {
@@ -60,7 +54,7 @@ mod test {
             txn.new_client(client_id, Uuid::new_v4()).unwrap();
         }
 
-        let server = Server::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -78,7 +72,7 @@ mod test {
         let client_id = Uuid::new_v4();
         let version_id = Uuid::new_v4();
         let snapshot_data = vec![1, 2, 3, 4];
-        let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
+        let storage = InMemoryStorage::new();
 
         // set up the storage contents..
         {
@@ -96,7 +90,7 @@ mod test {
             .unwrap();
         }
 
-        let server = Server::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 

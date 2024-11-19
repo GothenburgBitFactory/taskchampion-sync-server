@@ -1,10 +1,10 @@
 use crate::api::{
-    client_id_header, failure_to_ise, ServerState, HISTORY_SEGMENT_CONTENT_TYPE,
+    client_id_header, server_error_to_actix, ServerState, HISTORY_SEGMENT_CONTENT_TYPE,
     PARENT_VERSION_ID_HEADER, VERSION_ID_HEADER,
 };
 use actix_web::{error, get, web, HttpRequest, HttpResponse, Result};
 use std::sync::Arc;
-use taskchampion_sync_server_core::{get_child_version, GetVersionResult, VersionId};
+use taskchampion_sync_server_core::{GetVersionResult, ServerError, VersionId};
 
 /// Get a child version.
 ///
@@ -21,43 +21,35 @@ pub(crate) async fn service(
     path: web::Path<VersionId>,
 ) -> Result<HttpResponse> {
     let parent_version_id = path.into_inner();
-
-    let mut txn = server_state.storage.txn().map_err(failure_to_ise)?;
-
     let client_id = client_id_header(&req)?;
 
-    let client = txn
-        .get_client(client_id)
-        .map_err(failure_to_ise)?
-        .ok_or_else(|| error::ErrorNotFound("no such client"))?;
-
-    return match get_child_version(
-        txn,
-        &server_state.config,
-        client_id,
-        client,
-        parent_version_id,
-    )
-    .map_err(failure_to_ise)?
+    return match server_state
+        .server
+        .get_child_version(client_id, parent_version_id)
     {
-        GetVersionResult::Success {
+        Ok(GetVersionResult::Success {
             version_id,
             parent_version_id,
             history_segment,
-        } => Ok(HttpResponse::Ok()
+        }) => Ok(HttpResponse::Ok()
             .content_type(HISTORY_SEGMENT_CONTENT_TYPE)
             .append_header((VERSION_ID_HEADER, version_id.to_string()))
             .append_header((PARENT_VERSION_ID_HEADER, parent_version_id.to_string()))
             .body(history_segment)),
-        GetVersionResult::NotFound => Err(error::ErrorNotFound("no such version")),
-        GetVersionResult::Gone => Err(error::ErrorGone("version has been deleted")),
+        Ok(GetVersionResult::NotFound) => Err(error::ErrorNotFound("no such version")),
+        Ok(GetVersionResult::Gone) => Err(error::ErrorGone("version has been deleted")),
+        // Note that the HTTP client cannot differentiate `NotFound` and `NoSuchClient`, as both
+        // are a 404 NOT FOUND response. In either case, the HTTP client will typically attempt
+        // to add a new version, which may create the new client at the same time.
+        Err(ServerError::NoSuchClient) => Err(error::ErrorNotFound("no such client")),
+        Err(e) => Err(server_error_to_actix(e)),
     };
 }
 
 #[cfg(test)]
 mod test {
     use crate::api::CLIENT_ID_HEADER;
-    use crate::Server;
+    use crate::WebServer;
     use actix_web::{http::StatusCode, test, App};
     use pretty_assertions::assert_eq;
     use taskchampion_sync_server_core::{InMemoryStorage, Storage, NIL_VERSION_ID};
@@ -68,7 +60,7 @@ mod test {
         let client_id = Uuid::new_v4();
         let version_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
-        let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
+        let storage = InMemoryStorage::new();
 
         // set up the storage contents..
         {
@@ -78,7 +70,7 @@ mod test {
                 .unwrap();
         }
 
-        let server = Server::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -111,8 +103,8 @@ mod test {
     async fn test_client_not_found() {
         let client_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
-        let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
-        let server = Server::new(Default::default(), storage);
+        let storage = InMemoryStorage::new();
+        let server = WebServer::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -131,7 +123,7 @@ mod test {
     async fn test_version_not_found_and_gone() {
         let client_id = Uuid::new_v4();
         let test_version_id = Uuid::new_v4();
-        let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
+        let storage = InMemoryStorage::new();
 
         // create the client and a single version.
         {
@@ -140,7 +132,7 @@ mod test {
             txn.add_version(client_id, test_version_id, NIL_VERSION_ID, b"vers".to_vec())
                 .unwrap();
         }
-        let server = Server::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 

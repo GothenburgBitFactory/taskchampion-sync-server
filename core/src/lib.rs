@@ -7,26 +7,17 @@
 //! This crate uses an abstract storage backend. Note that this does not implement the
 //! HTTP-specific portions of the protocol, nor provide any storage implementations.
 //!
-//! ## API Methods
+//! ## Usage
 //!
-//! The following API methods are implemented. These methods are documented in more detail in
-//! the protocol documentation.
-//!
-//! * [`add_version`]
-//! * [`get_child_version`]
-//! * [`add_snapshot`]
-//! * [`get_snapshot`]
-//!
-//! Each API method takes:
-//!
-//! * [`StorageTxn`] to access storage. Methods which modify storage will commit the transaction before returning.
-//! * [`ServerConfig`] providing basic configuration for the server's behavior.
-//! * `client_id` and a [`Client`] providing the client metadata.
+//! To use, create a new [`Server`] instance and call the relevant protocol API methods. The
+//! arguments and return values correspond closely to the protocol documentation.
 
+mod error;
 mod inmemory;
 mod server;
 mod storage;
 
+pub use error::*;
 pub use inmemory::*;
 pub use server::*;
 pub use storage::*;

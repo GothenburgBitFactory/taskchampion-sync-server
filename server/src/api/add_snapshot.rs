@@ -1,8 +1,8 @@
-use crate::api::{client_id_header, failure_to_ise, ServerState, SNAPSHOT_CONTENT_TYPE};
+use crate::api::{client_id_header, server_error_to_actix, ServerState, SNAPSHOT_CONTENT_TYPE};
 use actix_web::{error, post, web, HttpMessage, HttpRequest, HttpResponse, Result};
 use futures::StreamExt;
 use std::sync::Arc;
-use taskchampion_sync_server_core::{add_snapshot, VersionId, NIL_VERSION_ID};
+use taskchampion_sync_server_core::VersionId;
 
 /// Max snapshot size: 100MB
 const MAX_SIZE: usize = 100 * 1024 * 1024;
@@ -46,48 +46,27 @@ pub(crate) async fn service(
         return Err(error::ErrorBadRequest("No snapshot supplied"));
     }
 
-    // note that we do not open the transaction until the body has been read
-    // completely, to avoid blocking other storage access while that data is
-    // in transit.
-    let mut txn = server_state.storage.txn().map_err(failure_to_ise)?;
-
-    // get, or create, the client
-    let client = match txn.get_client(client_id).map_err(failure_to_ise)? {
-        Some(client) => client,
-        None => {
-            txn.new_client(client_id, NIL_VERSION_ID)
-                .map_err(failure_to_ise)?;
-            txn.get_client(client_id).map_err(failure_to_ise)?.unwrap()
-        }
-    };
-
-    add_snapshot(
-        txn,
-        &server_state.config,
-        client_id,
-        client,
-        version_id,
-        body.to_vec(),
-    )
-    .map_err(failure_to_ise)?;
+    server_state
+        .server
+        .add_snapshot(client_id, version_id, body.to_vec())
+        .map_err(server_error_to_actix)?;
     Ok(HttpResponse::Ok().body(""))
 }
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::api::CLIENT_ID_HEADER;
-    use crate::Server;
+    use crate::WebServer;
     use actix_web::{http::StatusCode, test, App};
     use pretty_assertions::assert_eq;
-    use taskchampion_sync_server_core::{InMemoryStorage, Storage};
+    use taskchampion_sync_server_core::{InMemoryStorage, Storage, NIL_VERSION_ID};
     use uuid::Uuid;
 
     #[actix_rt::test]
     async fn test_success() -> anyhow::Result<()> {
         let client_id = Uuid::new_v4();
         let version_id = Uuid::new_v4();
-        let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
+        let storage = InMemoryStorage::new();
 
         // set up the storage contents..
         {
@@ -96,7 +75,7 @@ mod test {
             txn.add_version(client_id, version_id, NIL_VERSION_ID, vec![])?;
         }
 
-        let server = Server::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -130,7 +109,7 @@ mod test {
     async fn test_not_added_200() {
         let client_id = Uuid::new_v4();
         let version_id = Uuid::new_v4();
-        let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
+        let storage = InMemoryStorage::new();
 
         // set up the storage contents..
         {
@@ -138,7 +117,7 @@ mod test {
             txn.new_client(client_id, NIL_VERSION_ID).unwrap();
         }
 
-        let server = Server::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -167,8 +146,8 @@ mod test {
     async fn test_bad_content_type() {
         let client_id = Uuid::new_v4();
         let version_id = Uuid::new_v4();
-        let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
-        let server = Server::new(Default::default(), storage);
+        let storage = InMemoryStorage::new();
+        let server = WebServer::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -187,8 +166,8 @@ mod test {
     async fn test_empty_body() {
         let client_id = Uuid::new_v4();
         let version_id = Uuid::new_v4();
-        let storage: Box<dyn Storage> = Box::new(InMemoryStorage::new());
-        let server = Server::new(Default::default(), storage);
+        let storage = InMemoryStorage::new();
+        let server = WebServer::new(Default::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
