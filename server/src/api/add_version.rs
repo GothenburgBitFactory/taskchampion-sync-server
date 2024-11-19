@@ -82,7 +82,7 @@ pub(crate) async fn service(
                 Ok(rb.finish())
             }
             Err(ServerError::NoSuchClient) => {
-                // Create a new client and repeate the `add_version` call.
+                // Create a new client and repeat the `add_version` call.
                 let mut txn = server_state.server.txn().map_err(server_error_to_actix)?;
                 txn.new_client(client_id, NIL_VERSION_ID)
                     .map_err(failure_to_ise)?;

@@ -150,16 +150,12 @@ impl Server {
         parent_version_id: VersionId,
         history_segment: HistorySegment,
     ) -> Result<(AddVersionResult, SnapshotUrgency), ServerError> {
+        log::debug!("add_version(client_id: {client_id}, parent_version_id: {parent_version_id})");
+
         let mut txn = self.storage.txn()?;
         let client = txn
             .get_client(client_id)?
             .ok_or(ServerError::NoSuchClient)?;
-
-        log::debug!(
-            "add_version(client_id: {}, parent_version_id: {})",
-            client_id,
-            parent_version_id,
-        );
 
         // check if this version is acceptable, under the protection of the transaction
         if client.latest_version_id != NIL_VERSION_ID
@@ -174,10 +170,7 @@ impl Server {
 
         // invent a version ID
         let version_id = Uuid::new_v4();
-        log::debug!(
-            "add_version request accepted: new version_id: {}",
-            version_id
-        );
+        log::debug!("add_version request accepted: new version_id: {version_id}");
 
         // update the DB
         txn.add_version(client_id, version_id, parent_version_id, history_segment)?;
@@ -211,26 +204,19 @@ impl Server {
         version_id: VersionId,
         data: Vec<u8>,
     ) -> Result<(), ServerError> {
+        log::debug!("add_snapshot(client_id: {client_id}, version_id: {version_id})");
+
         let mut txn = self.storage.txn()?;
         let client = txn
             .get_client(client_id)?
             .ok_or(ServerError::NoSuchClient)?;
-
-        log::debug!(
-            "add_snapshot(client_id: {}, version_id: {})",
-            client_id,
-            version_id,
-        );
 
         // NOTE: if the snapshot is rejected, this function logs about it and returns
         // Ok(()), as there's no reason to report an errot to the client / user.
 
         let last_snapshot = client.snapshot.map(|snap| snap.version_id);
         if Some(version_id) == last_snapshot {
-            log::debug!(
-                "rejecting snapshot for version {}: already exists",
-                version_id
-            );
+            log::debug!("rejecting snapshot for version {version_id}: already exists");
             return Ok(());
         }
 
@@ -247,20 +233,14 @@ impl Server {
 
             if Some(vid) == last_snapshot {
                 // the new snapshot is older than the last snapshot, so ignore it
-                log::debug!(
-                "rejecting snapshot for version {}: newer snapshot already exists or no such version",
-                version_id
-            );
+                log::debug!("rejecting snapshot for version {version_id}: newer snapshot already exists or no such version");
                 return Ok(());
             }
 
             search_len -= 1;
             if search_len <= 0 || vid == NIL_VERSION_ID {
                 // this should not happen in normal operation, so warn about it
-                log::warn!(
-                    "rejecting snapshot for version {}: version is too old or no such version",
-                    version_id
-                );
+                log::warn!("rejecting snapshot for version {version_id}: version is too old or no such version");
                 return Ok(());
             }
 
@@ -270,15 +250,12 @@ impl Server {
             } else {
                 // this version does not exist; "this should not happen" but if it does,
                 // we don't need a snapshot earlier than the missing version.
-                log::warn!(
-                    "rejecting snapshot for version {}: newer versions have already been deleted",
-                    version_id
-                );
+                log::warn!("rejecting snapshot for version {version_id}: newer versions have already been deleted");
                 return Ok(());
             }
         }
 
-        log::debug!("accepting snapshot for version {}", version_id);
+        log::debug!("accepting snapshot for version {version_id}");
         txn.set_snapshot(
             client_id,
             Snapshot {
@@ -346,6 +323,7 @@ mod test {
 
             let mut version_id = Uuid::nil();
             txn.new_client(client_id, Uuid::nil())?;
+            debug_assert!(num_versions < u8::MAX.into());
             for vnum in 0..num_versions {
                 let parent_version_id = version_id;
                 version_id = Uuid::new_v4();
@@ -354,6 +332,7 @@ mod test {
                     client_id,
                     version_id,
                     parent_version_id,
+                    // Generate some unique data for this version.
                     vec![0, 0, vnum as u8],
                 )?;
                 if Some(vnum) == snapshot_version {
@@ -364,6 +343,7 @@ mod test {
                             versions_since: 0,
                             timestamp: Utc::now() - Duration::days(snapshot_days_ago.unwrap_or(0)),
                         },
+                        // Generate some unique data for this snapshot.
                         vec![vnum as u8],
                     )?;
                 }
@@ -379,11 +359,11 @@ mod test {
         server: &Server,
         client_id: Uuid,
         existing_versions: &[Uuid],
-        result: (AddVersionResult, SnapshotUrgency),
+        (add_version_result, snapshot_urgency): (AddVersionResult, SnapshotUrgency),
         expected_history: Vec<u8>,
         expected_urgency: SnapshotUrgency,
     ) -> anyhow::Result<()> {
-        if let AddVersionResult::Ok(new_version_id) = result.0 {
+        if let AddVersionResult::Ok(new_version_id) = add_version_result {
             // check that it invented a new version ID
             for v in existing_versions {
                 assert_ne!(&new_version_id, v);
@@ -400,10 +380,10 @@ mod test {
             assert_eq!(version.parent_version_id, parent_version_id);
             assert_eq!(version.history_segment, expected_history);
         } else {
-            panic!("did not get Ok from add_version: {:?}", result);
+            panic!("did not get Ok from add_version: {:?}", add_version_result);
         }
 
-        assert_eq!(result.1, expected_urgency);
+        assert_eq!(snapshot_urgency, expected_urgency);
 
         Ok(())
     }
