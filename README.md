@@ -19,6 +19,19 @@ It is comprised of three crates:
  - `taskchmpaion-sync-server-sqlite` implements an SQLite backend for the core
  - `taskchampion-sync-server` implements a simple HTTP server for the protocol
 
+## Running the Server
+
+The server is configured with command-line options. See
+`taskchampion-sync-server --help` for full details.
+
+The `--data-dir` option specifies where the server should store its data, and
+`--port` gives the port on which the HTTP server runs. The server does not
+implement TLS; for public deployments, the recommendation is to use a reverse
+proxy such as Nginx, haproxy, or Apache httpd.
+
+By default, the server allows all client IDs. To limit the accepted client IDs,
+such as when running a personal server, use `--allow-client-id <client-id>`.
+
 ## Installation
 
 ### As container

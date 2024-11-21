@@ -4,8 +4,9 @@ mod api;
 
 use actix_web::{get, middleware, web, Responder};
 use api::{api_scope, ServerState};
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 use taskchampion_sync_server_core::{Server, ServerConfig, Storage};
+use uuid::Uuid;
 
 #[get("/")]
 async fn index() -> impl Responder {
@@ -20,10 +21,15 @@ pub struct WebServer {
 
 impl WebServer {
     /// Create a new sync server with the given storage implementation.
-    pub fn new<ST: Storage + 'static>(config: ServerConfig, storage: ST) -> Self {
+    pub fn new<ST: Storage + 'static>(
+        config: ServerConfig,
+        client_id_allowlist: Option<HashSet<Uuid>>,
+        storage: ST,
+    ) -> Self {
         Self {
             server_state: Arc::new(ServerState {
                 server: Server::new(config, storage),
+                client_id_allowlist,
             }),
         }
     }
@@ -51,7 +57,7 @@ mod test {
 
     #[actix_rt::test]
     async fn test_cache_control() {
-        let server = WebServer::new(Default::default(), InMemoryStorage::new());
+        let server = WebServer::new(Default::default(), None, InMemoryStorage::new());
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 

@@ -1,6 +1,4 @@
-use crate::api::{
-    client_id_header, server_error_to_actix, ServerState, SNAPSHOT_CONTENT_TYPE, VERSION_ID_HEADER,
-};
+use crate::api::{server_error_to_actix, ServerState, SNAPSHOT_CONTENT_TYPE, VERSION_ID_HEADER};
 use actix_web::{error, get, web, HttpRequest, HttpResponse, Result};
 use std::sync::Arc;
 
@@ -17,7 +15,7 @@ pub(crate) async fn service(
     req: HttpRequest,
     server_state: web::Data<Arc<ServerState>>,
 ) -> Result<HttpResponse> {
-    let client_id = client_id_header(&req)?;
+    let client_id = server_state.client_id_header(&req)?;
 
     if let Some((version_id, data)) = server_state
         .server
@@ -54,7 +52,7 @@ mod test {
             txn.new_client(client_id, Uuid::new_v4()).unwrap();
         }
 
-        let server = WebServer::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), None, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -90,7 +88,7 @@ mod test {
             .unwrap();
         }
 
-        let server = WebServer::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), None, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 

@@ -1,7 +1,6 @@
 use crate::api::{
-    client_id_header, failure_to_ise, server_error_to_actix, ServerState,
-    HISTORY_SEGMENT_CONTENT_TYPE, PARENT_VERSION_ID_HEADER, SNAPSHOT_REQUEST_HEADER,
-    VERSION_ID_HEADER,
+    failure_to_ise, server_error_to_actix, ServerState, HISTORY_SEGMENT_CONTENT_TYPE,
+    PARENT_VERSION_ID_HEADER, SNAPSHOT_REQUEST_HEADER, VERSION_ID_HEADER,
 };
 use actix_web::{error, post, web, HttpMessage, HttpRequest, HttpResponse, Result};
 use futures::StreamExt;
@@ -40,7 +39,7 @@ pub(crate) async fn service(
         return Err(error::ErrorBadRequest("Bad content-type"));
     }
 
-    let client_id = client_id_header(&req)?;
+    let client_id = server_state.client_id_header(&req)?;
 
     // read the body in its entirety
     let mut body = web::BytesMut::new();
@@ -116,7 +115,7 @@ mod test {
             txn.new_client(client_id, Uuid::nil()).unwrap();
         }
 
-        let server = WebServer::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), None, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -150,7 +149,7 @@ mod test {
         let client_id = Uuid::new_v4();
         let version_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
-        let server = WebServer::new(Default::default(), InMemoryStorage::new());
+        let server = WebServer::new(Default::default(), None, InMemoryStorage::new());
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -201,7 +200,7 @@ mod test {
             txn.new_client(client_id, version_id).unwrap();
         }
 
-        let server = WebServer::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), None, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -229,7 +228,7 @@ mod test {
         let client_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
         let storage = InMemoryStorage::new();
-        let server = WebServer::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), None, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -249,7 +248,7 @@ mod test {
         let client_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
         let storage = InMemoryStorage::new();
-        let server = WebServer::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), None, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
