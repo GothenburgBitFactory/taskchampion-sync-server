@@ -27,7 +27,7 @@ fn command() -> Command {
                 .default_value("/var/lib/taskchampion-sync-server"),
         )
         .arg(
-            arg!(-C --"allow-client-id" <CLIENT_IDS> "Client IDs to allow (can be repeated; default: all)")
+            arg!(-C --"allow-client-id" <CLIENT_ID> "Client IDs to allow (can be repeated; if not specified, all clients are allowed)")
                 .value_parser(value_parser!(Uuid))
                 .action(ArgAction::Append)
                 .required(false),
