@@ -1,6 +1,6 @@
 use crate::api::{
-    client_id_header, server_error_to_actix, ServerState, HISTORY_SEGMENT_CONTENT_TYPE,
-    PARENT_VERSION_ID_HEADER, VERSION_ID_HEADER,
+    server_error_to_actix, ServerState, HISTORY_SEGMENT_CONTENT_TYPE, PARENT_VERSION_ID_HEADER,
+    VERSION_ID_HEADER,
 };
 use actix_web::{error, get, web, HttpRequest, HttpResponse, Result};
 use std::sync::Arc;
@@ -21,7 +21,7 @@ pub(crate) async fn service(
     path: web::Path<VersionId>,
 ) -> Result<HttpResponse> {
     let parent_version_id = path.into_inner();
-    let client_id = client_id_header(&req)?;
+    let client_id = server_state.client_id_header(&req)?;
 
     return match server_state
         .server
@@ -70,7 +70,7 @@ mod test {
                 .unwrap();
         }
 
-        let server = WebServer::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), None, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -104,7 +104,7 @@ mod test {
         let client_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
         let storage = InMemoryStorage::new();
-        let server = WebServer::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), None, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -132,7 +132,7 @@ mod test {
             txn.add_version(client_id, test_version_id, NIL_VERSION_ID, b"vers".to_vec())
                 .unwrap();
         }
-        let server = WebServer::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), None, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 

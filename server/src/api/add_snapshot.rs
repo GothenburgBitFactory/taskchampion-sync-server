@@ -1,4 +1,4 @@
-use crate::api::{client_id_header, server_error_to_actix, ServerState, SNAPSHOT_CONTENT_TYPE};
+use crate::api::{server_error_to_actix, ServerState, SNAPSHOT_CONTENT_TYPE};
 use actix_web::{error, post, web, HttpMessage, HttpRequest, HttpResponse, Result};
 use futures::StreamExt;
 use std::sync::Arc;
@@ -29,7 +29,7 @@ pub(crate) async fn service(
         return Err(error::ErrorBadRequest("Bad content-type"));
     }
 
-    let client_id = client_id_header(&req)?;
+    let client_id = server_state.client_id_header(&req)?;
 
     // read the body in its entirety
     let mut body = web::BytesMut::new();
@@ -75,7 +75,7 @@ mod test {
             txn.add_version(client_id, version_id, NIL_VERSION_ID, vec![])?;
         }
 
-        let server = WebServer::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), None, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -117,7 +117,7 @@ mod test {
             txn.new_client(client_id, NIL_VERSION_ID).unwrap();
         }
 
-        let server = WebServer::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), None, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -147,7 +147,7 @@ mod test {
         let client_id = Uuid::new_v4();
         let version_id = Uuid::new_v4();
         let storage = InMemoryStorage::new();
-        let server = WebServer::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), None, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -167,7 +167,7 @@ mod test {
         let client_id = Uuid::new_v4();
         let version_id = Uuid::new_v4();
         let storage = InMemoryStorage::new();
-        let server = WebServer::new(Default::default(), storage);
+        let server = WebServer::new(Default::default(), None, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
