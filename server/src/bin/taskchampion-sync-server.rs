@@ -1,6 +1,11 @@
 #![deny(clippy::all)]
 
-use actix_web::{middleware::Logger, App, HttpServer};
+use actix_web::{
+    dev::ServiceResponse,
+    http::StatusCode,
+    middleware::{ErrorHandlerResponse, ErrorHandlers, Logger},
+    App, HttpServer,
+};
 use clap::{arg, builder::ValueParser, value_parser, ArgAction, Command};
 use std::{collections::HashSet, ffi::OsString};
 use taskchampion_sync_server::WebServer;
@@ -44,6 +49,13 @@ fn command() -> Command {
         )
 }
 
+fn print_error<B>(res: ServiceResponse<B>) -> actix_web::Result<ErrorHandlerResponse<B>> {
+    if let Some(err) = res.response().error() {
+        log::error!("Internal Server Error caused by:\n{:?}", err);
+    }
+    Ok(ErrorHandlerResponse::Response(res.map_into_left_body()))
+}
+
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
@@ -66,6 +78,7 @@ async fn main() -> anyhow::Result<()> {
     log::info!("Serving on port {}", port);
     HttpServer::new(move || {
         App::new()
+            .wrap(ErrorHandlers::new().handler(StatusCode::INTERNAL_SERVER_ERROR, print_error))
             .wrap(Logger::default())
             .configure(|cfg| server.config(cfg))
     })
