@@ -50,6 +50,7 @@ mod test {
         {
             let mut txn = storage.txn().unwrap();
             txn.new_client(client_id, Uuid::new_v4()).unwrap();
+            txn.commit().unwrap();
         }
 
         let server = WebServer::new(Default::default(), None, storage);
@@ -86,6 +87,7 @@ mod test {
                 snapshot_data.clone(),
             )
             .unwrap();
+            txn.commit().unwrap();
         }
 
         let server = WebServer::new(Default::default(), None, storage);

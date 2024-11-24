@@ -36,8 +36,11 @@ pub struct Version {
 /// A transaction in the storage backend.
 ///
 /// Transactions must be sequentially consistent. That is, the results of transactions performed
-/// in storage must be as if each were executed sequentially in some order. In particular, the
-/// `Client.latest_version` must not change between a call to `get_client` and `add_version`.
+/// in storage must be as if each were executed sequentially in some order. In particular,
+/// un-committed changes must not be read by another transaction.
+///
+/// Changes in a transaction that is dropped without calling `commit` must not appear in any other
+/// transaction.
 pub trait StorageTxn {
     /// Get information about the given client
     fn get_client(&mut self, client_id: Uuid) -> anyhow::Result<Option<Client>>;
@@ -92,5 +95,5 @@ pub trait StorageTxn {
 /// [`crate::storage::StorageTxn`] trait.
 pub trait Storage: Send + Sync {
     /// Begin a transaction
-    fn txn<'a>(&'a self) -> anyhow::Result<Box<dyn StorageTxn + 'a>>;
+    fn txn(&self) -> anyhow::Result<Box<dyn StorageTxn + '_>>;
 }

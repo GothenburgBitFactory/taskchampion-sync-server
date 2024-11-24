@@ -7,12 +7,6 @@ use std::path::Path;
 use taskchampion_sync_server_core::{Client, Snapshot, Storage, StorageTxn, Version};
 use uuid::Uuid;
 
-#[derive(Debug, thiserror::Error)]
-enum SqliteError {
-    #[error("Failed to create SQLite transaction")]
-    CreateTransactionFailed,
-}
-
 /// Newtype to allow implementing `FromSql` for foreign `uuid::Uuid`
 struct StoredUuid(Uuid);
 
@@ -34,6 +28,9 @@ impl ToSql for StoredUuid {
 }
 
 /// An on-disk storage backend which uses SQLite.
+///
+/// A new connection is opened for each transaction, and only one transaction may be active at a
+/// time; a second call to `txn` will block until the first transaction is dropped.
 pub struct SqliteStorage {
     db_file: std::path::PathBuf,
 }
@@ -54,11 +51,13 @@ impl SqliteStorage {
 
         let o = SqliteStorage { db_file };
 
-        {
-            let mut con = o.new_connection()?;
-            let txn = con.transaction()?;
+        let con = o.new_connection()?;
 
-            let queries = vec![
+        // Use the modern WAL mode.
+        con.query_row("PRAGMA journal_mode=WAL", [], |_row| Ok(()))
+            .context("Setting journal_mode=WAL")?;
+
+        let queries = vec![
                 "CREATE TABLE IF NOT EXISTS clients (
                     client_id STRING PRIMARY KEY,
                     latest_version_id STRING,
@@ -69,11 +68,9 @@ impl SqliteStorage {
                 "CREATE TABLE IF NOT EXISTS versions (version_id STRING PRIMARY KEY, client_id STRING, parent_version_id STRING, history_segment BLOB);",
                 "CREATE INDEX IF NOT EXISTS versions_by_parent ON versions (parent_version_id);",
             ];
-            for q in queries {
-                txn.execute(q, [])
-                    .context("Error while creating SQLite tables")?;
-            }
-            txn.commit()?;
+        for q in queries {
+            con.execute(q, [])
+                .context("Error while creating SQLite tables")?;
         }
 
         Ok(o)
@@ -83,22 +80,22 @@ impl SqliteStorage {
 impl Storage for SqliteStorage {
     fn txn<'a>(&'a self) -> anyhow::Result<Box<dyn StorageTxn + 'a>> {
         let con = self.new_connection()?;
-        let t = Txn { con };
-        Ok(Box::new(t))
+        // Begin the transaction on this new connection. An IMMEDIATE connection is in
+        // write (exclusive) mode from the start.
+        con.execute("BEGIN IMMEDIATE", [])?;
+        let txn = Txn { con };
+        Ok(Box::new(txn))
     }
 }
 
 struct Txn {
+    // SQLite only allows one concurrent transaction per connection, and rusqlite emulates
+    // transactions by running `BEGIN ...` and `COMMIT` at appropriate times. So we will do
+    // the same.
     con: Connection,
 }
 
 impl Txn {
-    fn get_txn(&mut self) -> Result<rusqlite::Transaction, SqliteError> {
-        self.con
-            .transaction()
-            .map_err(|_e| SqliteError::CreateTransactionFailed)
-    }
-
     /// Implementation for queries from the versions table
     fn get_version_impl(
         &mut self,
@@ -106,8 +103,8 @@ impl Txn {
         client_id: Uuid,
         version_id_arg: Uuid,
     ) -> anyhow::Result<Option<Version>> {
-        let t = self.get_txn()?;
-        let r = t
+        let r = self
+            .con
             .query_row(
                 query,
                 params![&StoredUuid(version_id_arg), &StoredUuid(client_id)],
@@ -130,8 +127,8 @@ impl Txn {
 
 impl StorageTxn for Txn {
     fn get_client(&mut self, client_id: Uuid) -> anyhow::Result<Option<Client>> {
-        let t = self.get_txn()?;
-        let result: Option<Client> = t
+        let result: Option<Client> = self
+            .con
             .query_row(
                 "SELECT
                     latest_version_id,
@@ -174,14 +171,12 @@ impl StorageTxn for Txn {
     }
 
     fn new_client(&mut self, client_id: Uuid, latest_version_id: Uuid) -> anyhow::Result<()> {
-        let t = self.get_txn()?;
-
-        t.execute(
-            "INSERT OR REPLACE INTO clients (client_id, latest_version_id) VALUES (?, ?)",
-            params![&StoredUuid(client_id), &StoredUuid(latest_version_id)],
-        )
-        .context("Error creating/updating client")?;
-        t.commit()?;
+        self.con
+            .execute(
+                "INSERT OR REPLACE INTO clients (client_id, latest_version_id) VALUES (?, ?)",
+                params![&StoredUuid(client_id), &StoredUuid(latest_version_id)],
+            )
+            .context("Error creating/updating client")?;
         Ok(())
     }
 
@@ -191,26 +186,24 @@ impl StorageTxn for Txn {
         snapshot: Snapshot,
         data: Vec<u8>,
     ) -> anyhow::Result<()> {
-        let t = self.get_txn()?;
-
-        t.execute(
-            "UPDATE clients
+        self.con
+            .execute(
+                "UPDATE clients
              SET
                snapshot_version_id = ?,
                snapshot_timestamp = ?,
                versions_since_snapshot = ?,
                snapshot = ?
              WHERE client_id = ?",
-            params![
-                &StoredUuid(snapshot.version_id),
-                snapshot.timestamp.timestamp(),
-                snapshot.versions_since,
-                data,
-                &StoredUuid(client_id),
-            ],
-        )
-        .context("Error creating/updating snapshot")?;
-        t.commit()?;
+                params![
+                    &StoredUuid(snapshot.version_id),
+                    snapshot.timestamp.timestamp(),
+                    snapshot.versions_since,
+                    data,
+                    &StoredUuid(client_id),
+                ],
+            )
+            .context("Error creating/updating snapshot")?;
         Ok(())
     }
 
@@ -219,8 +212,8 @@ impl StorageTxn for Txn {
         client_id: Uuid,
         version_id: Uuid,
     ) -> anyhow::Result<Option<Vec<u8>>> {
-        let t = self.get_txn()?;
-        let r = t
+        let r = self
+            .con
             .query_row(
                 "SELECT snapshot, snapshot_version_id FROM clients WHERE client_id = ?",
                 params![&StoredUuid(client_id)],
@@ -271,9 +264,7 @@ impl StorageTxn for Txn {
         parent_version_id: Uuid,
         history_segment: Vec<u8>,
     ) -> anyhow::Result<()> {
-        let t = self.get_txn()?;
-
-        t.execute(
+        self.con.execute(
             "INSERT INTO versions (version_id, client_id, parent_version_id, history_segment) VALUES(?, ?, ?, ?)",
             params![
                 StoredUuid(version_id),
@@ -283,25 +274,22 @@ impl StorageTxn for Txn {
             ]
         )
         .context("Error adding version")?;
-        t.execute(
-            "UPDATE clients
+        self.con
+            .execute(
+                "UPDATE clients
              SET
                latest_version_id = ?,
                versions_since_snapshot = versions_since_snapshot + 1
              WHERE client_id = ?",
-            params![StoredUuid(version_id), StoredUuid(client_id),],
-        )
-        .context("Error updating client for new version")?;
+                params![StoredUuid(version_id), StoredUuid(client_id),],
+            )
+            .context("Error updating client for new version")?;
 
-        t.commit()?;
         Ok(())
     }
 
     fn commit(&mut self) -> anyhow::Result<()> {
-        // FIXME: Note the queries aren't currently run in a
-        // transaction, as storing the transaction object and a pooled
-        // connection in the `Txn` object is complex.
-        // https://github.com/taskchampion/taskchampion/pull/206#issuecomment-860336073
+        self.con.execute("COMMIT", [])?;
         Ok(())
     }
 }

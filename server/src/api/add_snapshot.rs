@@ -73,6 +73,7 @@ mod test {
             let mut txn = storage.txn().unwrap();
             txn.new_client(client_id, version_id).unwrap();
             txn.add_version(client_id, version_id, NIL_VERSION_ID, vec![])?;
+            txn.commit()?;
         }
 
         let server = WebServer::new(Default::default(), None, storage);
@@ -115,6 +116,7 @@ mod test {
         {
             let mut txn = storage.txn().unwrap();
             txn.new_client(client_id, NIL_VERSION_ID).unwrap();
+            txn.commit().unwrap();
         }
 
         let server = WebServer::new(Default::default(), None, storage);
