@@ -82,9 +82,11 @@ pub(crate) async fn service(
             }
             Err(ServerError::NoSuchClient) => {
                 // Create a new client and repeat the `add_version` call.
-                let mut txn = server_state.server.txn().map_err(server_error_to_actix)?;
-                txn.new_client(client_id, NIL_VERSION_ID)
-                    .map_err(failure_to_ise)?;
+                let mut txn = server_state
+                    .server
+                    .txn(client_id)
+                    .map_err(server_error_to_actix)?;
+                txn.new_client(NIL_VERSION_ID).map_err(failure_to_ise)?;
                 txn.commit().map_err(failure_to_ise)?;
                 continue;
             }
@@ -111,8 +113,8 @@ mod test {
 
         // set up the storage contents..
         {
-            let mut txn = storage.txn().unwrap();
-            txn.new_client(client_id, Uuid::nil()).unwrap();
+            let mut txn = storage.txn(client_id).unwrap();
+            txn.new_client(Uuid::nil()).unwrap();
             txn.commit().unwrap();
         }
 
@@ -181,8 +183,8 @@ mod test {
 
         // Check that the client really was created
         {
-            let mut txn = server.server_state.server.txn().unwrap();
-            let client = txn.get_client(client_id).unwrap().unwrap();
+            let mut txn = server.server_state.server.txn(client_id).unwrap();
+            let client = txn.get_client().unwrap().unwrap();
             assert_eq!(client.latest_version_id, new_version_id);
             assert_eq!(client.snapshot, None);
         }
@@ -197,8 +199,8 @@ mod test {
 
         // set up the storage contents..
         {
-            let mut txn = storage.txn().unwrap();
-            txn.new_client(client_id, version_id).unwrap();
+            let mut txn = storage.txn(client_id).unwrap();
+            txn.new_client(version_id).unwrap();
             txn.commit().unwrap();
         }
 

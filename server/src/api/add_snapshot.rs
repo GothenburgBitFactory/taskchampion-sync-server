@@ -70,9 +70,9 @@ mod test {
 
         // set up the storage contents..
         {
-            let mut txn = storage.txn().unwrap();
-            txn.new_client(client_id, version_id).unwrap();
-            txn.add_version(client_id, version_id, NIL_VERSION_ID, vec![])?;
+            let mut txn = storage.txn(client_id).unwrap();
+            txn.new_client(version_id).unwrap();
+            txn.add_version(version_id, NIL_VERSION_ID, vec![])?;
             txn.commit()?;
         }
 
@@ -114,8 +114,8 @@ mod test {
 
         // set up the storage contents..
         {
-            let mut txn = storage.txn().unwrap();
-            txn.new_client(client_id, NIL_VERSION_ID).unwrap();
+            let mut txn = storage.txn(client_id).unwrap();
+            txn.new_client(NIL_VERSION_ID).unwrap();
             txn.commit().unwrap();
         }
 
