@@ -32,6 +32,10 @@ proxy such as Nginx, haproxy, or Apache httpd.
 By default, the server allows all client IDs. To limit the accepted client IDs,
 such as when running a personal server, use `--allow-client-id <client-id>`.
 
+The server only logs errors by default. To add additional logging output, set
+environment variable `RUST_LOG` to `info` to get a log message for every
+request, or to `debug` to get more verbose debugging output.
+
 ## Installation
 
 ### As container
