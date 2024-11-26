@@ -4,6 +4,7 @@ use taskchampion_sync_server_storage_sqlite::SqliteStorage;
 use tempfile::TempDir;
 use uuid::Uuid;
 
+/// Test that calls to `add_version` from different threads maintain sequential consistency.
 #[test]
 fn add_version_concurrency() -> anyhow::Result<()> {
     let tmp_dir = TempDir::new()?;
@@ -43,8 +44,9 @@ fn add_version_concurrency() -> anyhow::Result<()> {
         }
     });
 
-    // There should now be precisely N*T versions. This number will be smaller if there was a
-    // concurrency error allowing two conflicting `add_version` calls to overlap.
+    // There should now be precisely N*T versions. This number will be smaller if there were
+    // concurrent transactions, which would have allowed two `add_version` calls with the
+    // same `parent_version_id`.
     {
         let con = SqliteStorage::new(tmp_dir.path())?;
         let mut txn = con.txn()?;

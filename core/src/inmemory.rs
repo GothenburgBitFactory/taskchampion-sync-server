@@ -21,7 +21,8 @@ struct Inner {
 ///
 /// This is not for production use, but supports testing of sync server implementations.
 ///
-/// NOTE: this panics on transaction rollback, as it is just for testing.
+/// NOTE: this panics if changes were made in a transaction that is later dropped without being
+/// committed, as this likely represents a bug that should be exposed in tests.
 pub struct InMemoryStorage(Mutex<Inner>);
 
 impl InMemoryStorage {
