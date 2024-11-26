@@ -307,7 +307,12 @@ mod test {
     {
         let _ = env_logger::builder().is_test(true).try_init();
         let storage = InMemoryStorage::new();
-        let res = init(storage.txn()?.as_mut())?;
+        let res;
+        {
+            let mut txn = storage.txn()?;
+            res = init(txn.as_mut())?;
+            txn.commit()?;
+        }
         Ok((Server::new(ServerConfig::default(), storage), res))
     }
 

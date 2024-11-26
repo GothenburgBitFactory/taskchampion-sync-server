@@ -68,6 +68,7 @@ mod test {
             txn.new_client(client_id, Uuid::new_v4()).unwrap();
             txn.add_version(client_id, version_id, parent_version_id, b"abcd".to_vec())
                 .unwrap();
+            txn.commit().unwrap();
         }
 
         let server = WebServer::new(Default::default(), None, storage);
@@ -131,6 +132,7 @@ mod test {
             txn.new_client(client_id, Uuid::new_v4()).unwrap();
             txn.add_version(client_id, test_version_id, NIL_VERSION_ID, b"vers".to_vec())
                 .unwrap();
+            txn.commit().unwrap();
         }
         let server = WebServer::new(Default::default(), None, storage);
         let app = App::new().configure(|sc| server.config(sc));

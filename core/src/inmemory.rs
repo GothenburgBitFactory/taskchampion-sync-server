@@ -21,7 +21,8 @@ struct Inner {
 ///
 /// This is not for production use, but supports testing of sync server implementations.
 ///
-/// NOTE: this does not implement transaction rollback.
+/// NOTE: this panics if changes were made in a transaction that is later dropped without being
+/// committed, as this likely represents a bug that should be exposed in tests.
 pub struct InMemoryStorage(Mutex<Inner>);
 
 impl InMemoryStorage {
@@ -36,30 +37,39 @@ impl InMemoryStorage {
     }
 }
 
-struct InnerTxn<'a>(MutexGuard<'a, Inner>);
+struct InnerTxn<'a> {
+    guard: MutexGuard<'a, Inner>,
+    written: bool,
+    committed: bool,
+}
 
 impl Storage for InMemoryStorage {
-    fn txn<'a>(&'a self) -> anyhow::Result<Box<dyn StorageTxn + 'a>> {
-        Ok(Box::new(InnerTxn(self.0.lock().expect("poisoned lock"))))
+    fn txn(&self) -> anyhow::Result<Box<dyn StorageTxn + '_>> {
+        Ok(Box::new(InnerTxn {
+            guard: self.0.lock().expect("poisoned lock"),
+            written: false,
+            committed: false,
+        }))
     }
 }
 
 impl<'a> StorageTxn for InnerTxn<'a> {
     fn get_client(&mut self, client_id: Uuid) -> anyhow::Result<Option<Client>> {
-        Ok(self.0.clients.get(&client_id).cloned())
+        Ok(self.guard.clients.get(&client_id).cloned())
     }
 
     fn new_client(&mut self, client_id: Uuid, latest_version_id: Uuid) -> anyhow::Result<()> {
-        if self.0.clients.contains_key(&client_id) {
+        if self.guard.clients.contains_key(&client_id) {
             return Err(anyhow::anyhow!("Client {} already exists", client_id));
         }
-        self.0.clients.insert(
+        self.guard.clients.insert(
             client_id,
             Client {
                 latest_version_id,
                 snapshot: None,
             },
         );
+        self.written = true;
         Ok(())
     }
 
@@ -70,12 +80,13 @@ impl<'a> StorageTxn for InnerTxn<'a> {
         data: Vec<u8>,
     ) -> anyhow::Result<()> {
         let client = self
-            .0
+            .guard
             .clients
             .get_mut(&client_id)
             .ok_or_else(|| anyhow::anyhow!("no such client"))?;
         client.snapshot = Some(snapshot);
-        self.0.snapshots.insert(client_id, data);
+        self.guard.snapshots.insert(client_id, data);
+        self.written = true;
         Ok(())
     }
 
@@ -85,12 +96,12 @@ impl<'a> StorageTxn for InnerTxn<'a> {
         version_id: Uuid,
     ) -> anyhow::Result<Option<Vec<u8>>> {
         // sanity check
-        let client = self.0.clients.get(&client_id);
+        let client = self.guard.clients.get(&client_id);
         let client = client.ok_or_else(|| anyhow::anyhow!("no such client"))?;
         if Some(&version_id) != client.snapshot.as_ref().map(|snap| &snap.version_id) {
             return Err(anyhow::anyhow!("unexpected snapshot_version_id"));
         }
-        Ok(self.0.snapshots.get(&client_id).cloned())
+        Ok(self.guard.snapshots.get(&client_id).cloned())
     }
 
     fn get_version_by_parent(
@@ -98,9 +109,9 @@ impl<'a> StorageTxn for InnerTxn<'a> {
         client_id: Uuid,
         parent_version_id: Uuid,
     ) -> anyhow::Result<Option<Version>> {
-        if let Some(parent_version_id) = self.0.children.get(&(client_id, parent_version_id)) {
+        if let Some(parent_version_id) = self.guard.children.get(&(client_id, parent_version_id)) {
             Ok(self
-                .0
+                .guard
                 .versions
                 .get(&(client_id, *parent_version_id))
                 .cloned())
@@ -114,7 +125,7 @@ impl<'a> StorageTxn for InnerTxn<'a> {
         client_id: Uuid,
         version_id: Uuid,
     ) -> anyhow::Result<Option<Version>> {
-        Ok(self.0.versions.get(&(client_id, version_id)).cloned())
+        Ok(self.guard.versions.get(&(client_id, version_id)).cloned())
     }
 
     fn add_version(
@@ -131,7 +142,7 @@ impl<'a> StorageTxn for InnerTxn<'a> {
             history_segment,
         };
 
-        if let Some(client) = self.0.clients.get_mut(&client_id) {
+        if let Some(client) = self.guard.clients.get_mut(&client_id) {
             client.latest_version_id = version_id;
             if let Some(ref mut snap) = client.snapshot {
                 snap.versions_since += 1;
@@ -140,16 +151,26 @@ impl<'a> StorageTxn for InnerTxn<'a> {
             return Err(anyhow::anyhow!("Client {} does not exist", client_id));
         }
 
-        self.0
+        self.guard
             .children
             .insert((client_id, parent_version_id), version_id);
-        self.0.versions.insert((client_id, version_id), version);
+        self.guard.versions.insert((client_id, version_id), version);
 
+        self.written = true;
         Ok(())
     }
 
     fn commit(&mut self) -> anyhow::Result<()> {
+        self.committed = true;
         Ok(())
+    }
+}
+
+impl<'a> Drop for InnerTxn<'a> {
+    fn drop(&mut self) {
+        if self.written && !self.committed {
+            panic!("Uncommitted InMemoryStorage transaction dropped without commiting");
+        }
     }
 }
 
@@ -198,6 +219,7 @@ mod test {
         assert_eq!(client.latest_version_id, latest_version_id);
         assert_eq!(client.snapshot.unwrap(), snap);
 
+        txn.commit()?;
         Ok(())
     }
 
@@ -242,6 +264,7 @@ mod test {
         let version = txn.get_version(client_id, version_id)?.unwrap();
         assert_eq!(version, expected);
 
+        txn.commit()?;
         Ok(())
     }
 
@@ -284,6 +307,7 @@ mod test {
         // check that mismatched version is detected
         assert!(txn.get_snapshot_data(client_id, Uuid::new_v4()).is_err());
 
+        txn.commit()?;
         Ok(())
     }
 }
