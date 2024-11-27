@@ -48,8 +48,8 @@ mod test {
 
         // set up the storage contents..
         {
-            let mut txn = storage.txn().unwrap();
-            txn.new_client(client_id, Uuid::new_v4()).unwrap();
+            let mut txn = storage.txn(client_id).unwrap();
+            txn.new_client(Uuid::new_v4()).unwrap();
             txn.commit().unwrap();
         }
 
@@ -75,10 +75,9 @@ mod test {
 
         // set up the storage contents..
         {
-            let mut txn = storage.txn().unwrap();
-            txn.new_client(client_id, Uuid::new_v4()).unwrap();
+            let mut txn = storage.txn(client_id).unwrap();
+            txn.new_client(Uuid::new_v4()).unwrap();
             txn.set_snapshot(
-                client_id,
                 Snapshot {
                     version_id,
                     versions_since: 3,

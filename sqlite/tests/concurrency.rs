@@ -12,8 +12,8 @@ fn add_version_concurrency() -> anyhow::Result<()> {
 
     {
         let con = SqliteStorage::new(tmp_dir.path())?;
-        let mut txn = con.txn()?;
-        txn.new_client(client_id, NIL_VERSION_ID)?;
+        let mut txn = con.txn(client_id)?;
+        txn.new_client(NIL_VERSION_ID)?;
         txn.commit()?;
     }
 
@@ -25,12 +25,12 @@ fn add_version_concurrency() -> anyhow::Result<()> {
         let con = SqliteStorage::new(tmp_dir.path())?;
 
         for _ in 0..N {
-            let mut txn = con.txn()?;
-            let client = txn.get_client(client_id)?.unwrap();
+            let mut txn = con.txn(client_id)?;
+            let client = txn.get_client()?.unwrap();
             let version_id = Uuid::new_v4();
             let parent_version_id = client.latest_version_id;
             std::thread::yield_now(); // Make failure more likely.
-            txn.add_version(client_id, version_id, parent_version_id, b"data".to_vec())?;
+            txn.add_version(version_id, parent_version_id, b"data".to_vec())?;
             txn.commit()?;
         }
 
@@ -49,15 +49,13 @@ fn add_version_concurrency() -> anyhow::Result<()> {
     // same `parent_version_id`.
     {
         let con = SqliteStorage::new(tmp_dir.path())?;
-        let mut txn = con.txn()?;
-        let client = txn.get_client(client_id)?.unwrap();
+        let mut txn = con.txn(client_id)?;
+        let client = txn.get_client()?.unwrap();
 
         let mut n = 0;
         let mut version_id = client.latest_version_id;
         while version_id != NIL_VERSION_ID {
-            let version = txn
-                .get_version(client_id, version_id)?
-                .expect("version should exist");
+            let version = txn.get_version(version_id)?.expect("version should exist");
             n += 1;
             version_id = version.parent_version_id;
         }

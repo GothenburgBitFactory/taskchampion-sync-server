@@ -64,9 +64,9 @@ mod test {
 
         // set up the storage contents..
         {
-            let mut txn = storage.txn().unwrap();
-            txn.new_client(client_id, Uuid::new_v4()).unwrap();
-            txn.add_version(client_id, version_id, parent_version_id, b"abcd".to_vec())
+            let mut txn = storage.txn(client_id).unwrap();
+            txn.new_client(Uuid::new_v4()).unwrap();
+            txn.add_version(version_id, parent_version_id, b"abcd".to_vec())
                 .unwrap();
             txn.commit().unwrap();
         }
@@ -128,9 +128,9 @@ mod test {
 
         // create the client and a single version.
         {
-            let mut txn = storage.txn().unwrap();
-            txn.new_client(client_id, Uuid::new_v4()).unwrap();
-            txn.add_version(client_id, test_version_id, NIL_VERSION_ID, b"vers".to_vec())
+            let mut txn = storage.txn(client_id).unwrap();
+            txn.new_client(Uuid::new_v4()).unwrap();
+            txn.add_version(test_version_id, NIL_VERSION_ID, b"vers".to_vec())
                 .unwrap();
             txn.commit().unwrap();
         }
