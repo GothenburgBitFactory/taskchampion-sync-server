@@ -55,7 +55,7 @@ impl Storage for InMemoryStorage {
     }
 }
 
-impl<'a> StorageTxn for InnerTxn<'a> {
+impl StorageTxn for InnerTxn<'_> {
     fn get_client(&mut self) -> anyhow::Result<Option<Client>> {
         Ok(self.guard.clients.get(&self.client_id).cloned())
     }
@@ -163,7 +163,7 @@ impl<'a> StorageTxn for InnerTxn<'a> {
     }
 }
 
-impl<'a> Drop for InnerTxn<'a> {
+impl Drop for InnerTxn<'_> {
     fn drop(&mut self) {
         if self.written && !self.committed {
             panic!("Uncommitted InMemoryStorage transaction dropped without commiting");

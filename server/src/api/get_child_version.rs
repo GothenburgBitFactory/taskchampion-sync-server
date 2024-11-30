@@ -23,7 +23,7 @@ pub(crate) async fn service(
     let parent_version_id = path.into_inner();
     let client_id = server_state.client_id_header(&req)?;
 
-    return match server_state
+    match server_state
         .server
         .get_child_version(client_id, parent_version_id)
     {
@@ -43,7 +43,7 @@ pub(crate) async fn service(
         // to add a new version, which may create the new client at the same time.
         Err(ServerError::NoSuchClient) => Err(error::ErrorNotFound("no such client")),
         Err(e) => Err(server_error_to_actix(e)),
-    };
+    }
 }
 
 #[cfg(test)]
