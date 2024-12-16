@@ -27,6 +27,11 @@ use a reverse proxy such as Nginx, haproxy, or Apache httpd.
 
 ### Using Docker-Compose
 
+Every release of the server generates a Docker image in
+`ghcr.io/gothenburgbitfactory/taskchampion-sync-server`. The tags include
+`latest` for the latest release, and both minor and patch versions, e.g., `0.5`
+and `0.5.1`.
+
 The [`docker-compose.yml`](./docker-compose.yml) file in this repository is
 sufficient to run taskchampion-sync-server, including setting up TLS
 certificates using Lets Encrypt, thanks to [Caddy](https://caddyserver.com/).
@@ -44,9 +49,9 @@ TASKCHAMPION_SYNC_SERVER_HOSTNAME=taskwarrior.example.com docker compose up
 ```
 
 It can take a few minutes to obtain the certificate; the caddy container will
-log a msg "certificate obtained successfully" when this is complete, or error
-messages if the process fails. Once this process is complete, configure your
-`.taskrc`'s to point to the server:
+log a message "certificate obtained successfully" when this is complete, or
+error messages if the process fails. Once this process is complete, configure
+your `.taskrc`'s to point to the server:
 
 ```
 sync.server.url=https://taskwarrior.example.com
@@ -108,6 +113,7 @@ cargo build --release
 
 After build the binary is located in
 `target/release/taskchampion-sync-server`.
+
 ### Building the Container
 
 To build the container execute the following commands.

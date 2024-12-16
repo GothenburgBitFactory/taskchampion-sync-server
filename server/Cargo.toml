@@ -1,6 +1,6 @@
 [package]
 name = "taskchampion-sync-server"
-version = "0.4.1"
+version = "0.5.1-pre"
 authors = ["Dustin J. Mitchell <dustin@mozilla.com>"]
 edition = "2021"
 publish = false
