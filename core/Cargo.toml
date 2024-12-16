@@ -1,6 +1,6 @@
 [package]
 name = "taskchampion-sync-server-core"
-version = "0.5.0-pre"
+version = "0.5.1-pre"
 authors = ["Dustin J. Mitchell <dustin@mozilla.com>"]
 edition = "2021"
 description = "Core of sync protocol for TaskChampion"
