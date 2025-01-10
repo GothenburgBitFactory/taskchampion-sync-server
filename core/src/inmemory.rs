@@ -130,7 +130,6 @@ impl StorageTxn for InnerTxn<'_> {
         parent_version_id: Uuid,
         history_segment: Vec<u8>,
     ) -> anyhow::Result<()> {
-        // TODO: verify it doesn't exist (`.entry`?)
         let version = Version {
             version_id,
             parent_version_id,
@@ -143,15 +142,33 @@ impl StorageTxn for InnerTxn<'_> {
                 snap.versions_since += 1;
             }
         } else {
-            return Err(anyhow::anyhow!("Client {} does not exist", self.client_id));
+            anyhow::bail!("Client {} does not exist", self.client_id);
         }
 
-        self.guard
+        if self
+            .guard
             .children
-            .insert((self.client_id, parent_version_id), version_id);
-        self.guard
+            .insert((self.client_id, parent_version_id), version_id)
+            .is_some()
+        {
+            anyhow::bail!(
+                "Client {} already has a child for {}",
+                self.client_id,
+                parent_version_id
+            );
+        }
+        if self
+            .guard
             .versions
-            .insert((self.client_id, version_id), version);
+            .insert((self.client_id, version_id), version)
+            .is_some()
+        {
+            anyhow::bail!(
+                "Client {} already has a version {}",
+                self.client_id,
+                version_id
+            );
+        }
 
         self.written = true;
         Ok(())
@@ -255,6 +272,25 @@ mod test {
         let version = txn.get_version(version_id)?.unwrap();
         assert_eq!(version, expected);
 
+        txn.commit()?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_add_version_exists() -> anyhow::Result<()> {
+        let storage = InMemoryStorage::new();
+        let client_id = Uuid::new_v4();
+        let mut txn = storage.txn(client_id)?;
+
+        let version_id = Uuid::new_v4();
+        let parent_version_id = Uuid::new_v4();
+        let history_segment = b"abc".to_vec();
+
+        txn.new_client(parent_version_id)?;
+        txn.add_version(version_id, parent_version_id, history_segment.clone())?;
+        assert!(txn
+            .add_version(version_id, parent_version_id, history_segment.clone())
+            .is_err());
         txn.commit()?;
         Ok(())
     }

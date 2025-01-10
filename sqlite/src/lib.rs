@@ -386,6 +386,23 @@ mod test {
     }
 
     #[test]
+    fn test_add_version_exists() -> anyhow::Result<()> {
+        let tmp_dir = TempDir::new()?;
+        let storage = SqliteStorage::new(tmp_dir.path())?;
+        let client_id = Uuid::new_v4();
+        let mut txn = storage.txn(client_id)?;
+
+        let version_id = Uuid::new_v4();
+        let parent_version_id = Uuid::new_v4();
+        let history_segment = b"abc".to_vec();
+        txn.add_version(version_id, parent_version_id, history_segment.clone())?;
+        assert!(txn
+            .add_version(version_id, parent_version_id, history_segment.clone())
+            .is_err());
+        Ok(())
+    }
+
+    #[test]
     fn test_snapshots() -> anyhow::Result<()> {
         let tmp_dir = TempDir::new()?;
         let storage = SqliteStorage::new(tmp_dir.path())?;
