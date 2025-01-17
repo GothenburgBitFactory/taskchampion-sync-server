@@ -23,7 +23,7 @@ fn command() -> Command {
         .arg(
             arg!(-p --port <PORT> "Port on which to serve")
                 .help("Port on which to serve")
-                .value_parser(value_parser!(usize))
+                .value_parser(value_parser!(u16))
                 .default_value("8080"),
         )
         .arg(
@@ -62,7 +62,7 @@ async fn main() -> anyhow::Result<()> {
     let matches = command().get_matches();
 
     let data_dir: &OsString = matches.get_one("data-dir").unwrap();
-    let port: usize = *matches.get_one("port").unwrap();
+    let port: u16 = *matches.get_one("port").unwrap();
     let snapshot_versions: u32 = *matches.get_one("snapshot-versions").unwrap();
     let snapshot_days: i64 = *matches.get_one("snapshot-days").unwrap();
     let client_id_allowlist: Option<HashSet<Uuid>> = matches
@@ -82,7 +82,7 @@ async fn main() -> anyhow::Result<()> {
             .wrap(Logger::default())
             .configure(|cfg| server.config(cfg))
     })
-    .bind(format!("0.0.0.0:{}", port))?
+    .bind(("0.0.0.0", port))?
     .run()
     .await?;
     Ok(())
