@@ -27,6 +27,13 @@ fn command() -> Command {
                 .default_value("8080"),
         )
         .arg(
+            arg!(-l --listen <ADDRESS>)
+                .help("Address on which to listen on. Can be an IP Address or a DNS name. Can be repeated.")
+                .value_parser(ValueParser::string())
+                .default_value("localhost")
+                .action(ArgAction::Append),
+        )
+        .arg(
             arg!(-d --"data-dir" <DIR> "Directory in which to store data")
                 .value_parser(ValueParser::os_string())
                 .default_value("/var/lib/taskchampion-sync-server"),
@@ -76,15 +83,16 @@ async fn main() -> anyhow::Result<()> {
     let server = WebServer::new(config, client_id_allowlist, SqliteStorage::new(data_dir)?);
 
     log::info!("Serving on port {}", port);
-    HttpServer::new(move || {
+    let mut http_server = HttpServer::new(move || {
         App::new()
             .wrap(ErrorHandlers::new().handler(StatusCode::INTERNAL_SERVER_ERROR, print_error))
             .wrap(Logger::default())
             .configure(|cfg| server.config(cfg))
-    })
-    .bind(("0.0.0.0", port))?
-    .run()
-    .await?;
+    });
+    for listen_address in matches.get_many::<String>("listen").unwrap() {
+        http_server = http_server.bind((listen_address.as_str(), port))?
+    }
+    http_server.run().await?;
     Ok(())
 }
 
