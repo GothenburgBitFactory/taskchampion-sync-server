@@ -56,7 +56,7 @@ services:
         volume:
           nocopy: true
           subpath: tss
-    command: --data-dir /tss/taskchampion-sync-server --port 8080
+    command: --data-dir /tss/taskchampion-sync-server --listen 0.0.0.0:8080
     environment:
       - RUST_LOG=info
     depends_on:
