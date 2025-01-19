@@ -71,7 +71,10 @@ The server is configured with command-line options. See
 `taskchampion-sync-server --help` for full details.
 
 The `--data-dir` option specifies where the server should store its data, and
-`--port` gives the port on which the HTTP server runs.
+`--port` gives the port on which the HTTP server runs. You can also specify the
+listen address with `--listen`. The default listen address ist localhost, so if
+you do not use a reverse proxy or have custom container based deployment you
+probably have to change this.
 
 By default, the server allows all client IDs. To limit the accepted client IDs,
 such as when running a personal server, use `--allow-client-id <client-id>`.

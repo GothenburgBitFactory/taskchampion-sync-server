@@ -23,8 +23,15 @@ fn command() -> Command {
         .arg(
             arg!(-p --port <PORT> "Port on which to serve")
                 .help("Port on which to serve")
-                .value_parser(value_parser!(usize))
+                .value_parser(value_parser!(u16))
                 .default_value("8080"),
+        )
+        .arg(
+            arg!(-l --listen <ADDRESS>)
+                .help("Address on which to listen on. Can be an IP Address or a DNS name. Can be repeated.")
+                .value_parser(ValueParser::string())
+                .default_value("localhost")
+                .action(ArgAction::Append),
         )
         .arg(
             arg!(-d --"data-dir" <DIR> "Directory in which to store data")
@@ -62,7 +69,7 @@ async fn main() -> anyhow::Result<()> {
     let matches = command().get_matches();
 
     let data_dir: &OsString = matches.get_one("data-dir").unwrap();
-    let port: usize = *matches.get_one("port").unwrap();
+    let port: u16 = *matches.get_one("port").unwrap();
     let snapshot_versions: u32 = *matches.get_one("snapshot-versions").unwrap();
     let snapshot_days: i64 = *matches.get_one("snapshot-days").unwrap();
     let client_id_allowlist: Option<HashSet<Uuid>> = matches
@@ -76,15 +83,16 @@ async fn main() -> anyhow::Result<()> {
     let server = WebServer::new(config, client_id_allowlist, SqliteStorage::new(data_dir)?);
 
     log::info!("Serving on port {}", port);
-    HttpServer::new(move || {
+    let mut http_server = HttpServer::new(move || {
         App::new()
             .wrap(ErrorHandlers::new().handler(StatusCode::INTERNAL_SERVER_ERROR, print_error))
             .wrap(Logger::default())
             .configure(|cfg| server.config(cfg))
-    })
-    .bind(format!("0.0.0.0:{}", port))?
-    .run()
-    .await?;
+    });
+    for listen_address in matches.get_many::<String>("listen").unwrap() {
+        http_server = http_server.bind((listen_address.as_str(), port))?
+    }
+    http_server.run().await?;
     Ok(())
 }
 
