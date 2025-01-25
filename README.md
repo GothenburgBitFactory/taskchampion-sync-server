@@ -70,8 +70,11 @@ system startup. See the docker-compose documentation for more information.
 The server is configured with command-line options. See
 `taskchampion-sync-server --help` for full details.
 
-The `--data-dir` option specifies where the server should store its data, and
-`--port` gives the port on which the HTTP server runs.
+The `--listen` option specifies the interface and port the server listens on.
+It must contain an IP-Address or a DNS name and a port number. This option is
+mandatory, but can be repeated to specify multiple interfaces or ports.
+
+The `--data-dir` option specifies where the server should store its data.
 
 By default, the server allows all client IDs. To limit the accepted client IDs,
 such as when running a personal server, use `--allow-client-id <client-id>`.

@@ -21,10 +21,11 @@ fn command() -> Command {
         .version(env!("CARGO_PKG_VERSION"))
         .about("Server for TaskChampion")
         .arg(
-            arg!(-p --port <PORT> "Port on which to serve")
-                .help("Port on which to serve")
-                .value_parser(value_parser!(usize))
-                .default_value("8080"),
+            arg!(-l --listen <ADDRESS>)
+                .help("Address and Port on which to listen on. Can be an IP Address or a DNS name followed by a colon and a port e.g. localhost:8080")
+                .value_parser(ValueParser::string())
+                .action(ArgAction::Append)
+                .required(true),
         )
         .arg(
             arg!(-d --"data-dir" <DIR> "Directory in which to store data")
@@ -62,7 +63,6 @@ async fn main() -> anyhow::Result<()> {
     let matches = command().get_matches();
 
     let data_dir: &OsString = matches.get_one("data-dir").unwrap();
-    let port: usize = *matches.get_one("port").unwrap();
     let snapshot_versions: u32 = *matches.get_one("snapshot-versions").unwrap();
     let snapshot_days: i64 = *matches.get_one("snapshot-days").unwrap();
     let client_id_allowlist: Option<HashSet<Uuid>> = matches
@@ -75,16 +75,17 @@ async fn main() -> anyhow::Result<()> {
     };
     let server = WebServer::new(config, client_id_allowlist, SqliteStorage::new(data_dir)?);
 
-    log::info!("Serving on port {}", port);
-    HttpServer::new(move || {
+    let mut http_server = HttpServer::new(move || {
         App::new()
             .wrap(ErrorHandlers::new().handler(StatusCode::INTERNAL_SERVER_ERROR, print_error))
             .wrap(Logger::default())
             .configure(|cfg| server.config(cfg))
-    })
-    .bind(format!("0.0.0.0:{}", port))?
-    .run()
-    .await?;
+    });
+    for listen_address in matches.get_many::<&str>("listen").unwrap() {
+        log::info!("Serving on {}", listen_address);
+        http_server = http_server.bind(listen_address)?
+    }
+    http_server.run().await?;
     Ok(())
 }
 
@@ -104,14 +105,19 @@ mod test {
 
     #[test]
     fn command_allowed_client_ids_none() {
-        let matches = command().get_matches_from(["tss"]);
+        let matches = command().get_matches_from(["tss", "--listen", "localhost:8080"]);
         assert_eq!(allowed(&matches), None);
     }
 
     #[test]
     fn command_allowed_client_ids_one() {
-        let matches =
-            command().get_matches_from(["tss", "-C", "711d5cf3-0cf0-4eb8-9eca-6f7f220638c0"]);
+        let matches = command().get_matches_from([
+            "tss",
+            "--listen",
+            "localhost:8080",
+            "-C",
+            "711d5cf3-0cf0-4eb8-9eca-6f7f220638c0",
+        ]);
         assert_eq!(
             allowed(&matches),
             Some(vec![Uuid::parse_str(
@@ -125,6 +131,8 @@ mod test {
     fn command_allowed_client_ids_two() {
         let matches = command().get_matches_from([
             "tss",
+            "--listen",
+            "localhost:8080",
             "-C",
             "711d5cf3-0cf0-4eb8-9eca-6f7f220638c0",
             "-C",
@@ -141,7 +149,13 @@ mod test {
 
     #[test]
     fn command_data_dir() {
-        let matches = command().get_matches_from(["tss", "--data-dir", "/foo/bar"]);
+        let matches = command().get_matches_from([
+            "tss",
+            "--data-dir",
+            "/foo/bar",
+            "--listen",
+            "localhost:8080",
+        ]);
         assert_eq!(matches.get_one::<OsString>("data-dir").unwrap(), "/foo/bar");
     }
 
