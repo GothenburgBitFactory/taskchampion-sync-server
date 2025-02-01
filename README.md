@@ -73,12 +73,17 @@ The server is configured with command-line options. See
 
 The `--listen` option specifies the interface and port the server listens on.
 It must contain an IP-Address or a DNS name and a port number. This option is
-mandatory, but can be repeated to specify multiple interfaces or ports.
+mandatory, but can be repeated to specify multiple interfaces or ports. This
+value can be specified in environment variable `LISTEN`, as a comma-separated
+list of values.
 
-The `--data-dir` option specifies where the server should store its data.
+The `--data-dir` option specifies where the server should store its data. This
+value can be specified in the environment variable `DATA_DIR`.
 
 By default, the server allows all client IDs. To limit the accepted client IDs,
 such as when running a personal server, use `--allow-client-id <client-id>`.
+This value can be specified in the environment variable `CLIENT_ID`, as a
+comma-separated list of client IDs.
 
 The server only logs errors by default. To add additional logging output, set
 environment variable `RUST_LOG` to `info` to get a log message for every
