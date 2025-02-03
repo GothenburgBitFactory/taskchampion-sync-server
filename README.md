@@ -32,17 +32,18 @@ Every release of the server generates a Docker image in
 `latest` for the latest release, and both minor and patch versions, e.g., `0.5`
 and `0.5.1`.
 
-The [`docker-compose.yml`](./docker-compose.yml) file in this repository is
-sufficient to run taskchampion-sync-server, including setting up TLS
-certificates using Lets Encrypt, thanks to [Caddy](https://caddyserver.com/).
+The
+[`docker-compose.yml`](https://raw.githubusercontent.com/GothenburgBitFactory/taskchampion-sync-server/refs/tags/v0.5.0/docker-compose.yml)
+file in this repository is sufficient to run taskchampion-sync-server,
+including setting up TLS certificates using Lets Encrypt, thanks to
+[Caddy](https://caddyserver.com/).
 
 You will need a server with ports 80 and 443 open to the Internet and with a
 fixed, publicly-resolvable hostname. These ports must be available both to your
 Taskwarrior clients and to the Lets Encrypt servers.
 
-On that server, clone this repository (or just download `docker-compose.yml` to
-the current directory -- the rest of the contents of this repository are not
-required) and run
+On that server, download `docker-compose.yml` from the link above (it is pinned
+to the latest release) into the current directory. Then run
 
 ```sh
 TASKCHAMPION_SYNC_SERVER_HOSTNAME=taskwarrior.example.com docker compose up
