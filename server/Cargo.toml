@@ -24,3 +24,4 @@ chrono.workspace = true
 actix-rt.workspace = true
 tempfile.workspace = true
 pretty_assertions.workspace = true
+temp-env.workspace = true

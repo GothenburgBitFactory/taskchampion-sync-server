@@ -1585,6 +1585,7 @@ dependencies = [
  "serde_json",
  "taskchampion-sync-server-core",
  "taskchampion-sync-server-storage-sqlite",
+ "temp-env",
  "tempfile",
  "thiserror",
  "uuid",
@@ -1615,6 +1616,15 @@ dependencies = [
  "tempfile",
  "thiserror",
  "uuid",
+]
+
+[[package]]
+name = "temp-env"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96374855068f47402c3121c6eed88d29cb1de8f3ab27090e273e420bdabcf050"
+dependencies = [
+ "parking_lot",
 ]
 
 [[package]]
