@@ -46,7 +46,7 @@ services:
         condition: service_completed_successfully
 
   tss:
-    image: ghcr.io/gothenburgbitfactory/taskchampion-sync-server:latest
+    image: ghcr.io/gothenburgbitfactory/taskchampion-sync-server:0.5.0
     restart: unless-stopped
     volumes:
       - type: volume

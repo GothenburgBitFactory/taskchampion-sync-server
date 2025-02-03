@@ -4,6 +4,8 @@
 1. Run `cargo test`
 1. Run `cargo clean && cargo clippy`
 1. Remove the `-pre` from `version` in all `*/Cargo.toml`, and from the `version = ..` in any references between packages.
+1. Update the link to `docker-compose.yml` in `README.md` to refer to the new version.
+1. Update the docker image in `docker-compose.yml` to refer to the new version.
 1. Run `cargo semver-checks` (https://crates.io/crates/cargo-semver-checks)
 1. Run `cargo build --release`
 1. Commit the changes (Cargo.lock will change too) with comment `vX.Y.Z`.
