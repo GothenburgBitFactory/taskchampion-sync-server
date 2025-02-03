@@ -81,9 +81,10 @@ The `--data-dir` option specifies where the server should store its data. This
 value can be specified in the environment variable `DATA_DIR`.
 
 By default, the server allows all client IDs. To limit the accepted client IDs,
-such as when running a personal server, use `--allow-client-id <client-id>`.
-This value can be specified in the environment variable `CLIENT_ID`, as a
-comma-separated list of client IDs.
+specify them in the environment variable `CLIENT_ID`, as a comma-separated list
+of UUIDs. Client IDs can be specified with `--allow-client-id`, but this should
+not be used on shared systems, as command line arguments are visible to all
+users on the system.
 
 The server only logs errors by default. To add additional logging output, set
 environment variable `RUST_LOG` to `info` to get a log message for every
