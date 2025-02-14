@@ -88,7 +88,7 @@ async fn main() -> anyhow::Result<()> {
             .wrap(Logger::default())
             .configure(|cfg| server.config(cfg))
     });
-    for listen_address in matches.get_many::<&str>("listen").unwrap() {
+    for listen_address in matches.get_many::<String>("listen").unwrap() {
         log::info!("Serving on {}", listen_address);
         http_server = http_server.bind(listen_address)?
     }
