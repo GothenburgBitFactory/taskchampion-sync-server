@@ -64,23 +64,47 @@ fn print_error<B>(res: ServiceResponse<B>) -> actix_web::Result<ErrorHandlerResp
     Ok(ErrorHandlerResponse::Response(res.map_into_left_body()))
 }
 
+struct ServerArgs {
+    data_dir: OsString,
+    snapshot_versions: u32,
+    snapshot_days: i64,
+    client_id_allowlist: Option<HashSet<Uuid>>,
+    listen_addresses: Vec<String>,
+}
+
+impl ServerArgs {
+    fn new(matches: clap::ArgMatches) -> Self {
+        Self {
+            data_dir: matches.get_one::<OsString>("data-dir").unwrap().clone(),
+            snapshot_versions: *matches.get_one("snapshot-versions").unwrap(),
+            snapshot_days: *matches.get_one("snapshot-days").unwrap(),
+            client_id_allowlist: matches
+                .get_many("allow-client-id")
+                .map(|ids| ids.copied().collect()),
+            listen_addresses: matches
+                .get_many::<String>("listen")
+                .unwrap()
+                .cloned()
+                .collect(),
+        }
+    }
+}
+
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
     let matches = command().get_matches();
 
-    let data_dir: &OsString = matches.get_one("data-dir").unwrap();
-    let snapshot_versions: u32 = *matches.get_one("snapshot-versions").unwrap();
-    let snapshot_days: i64 = *matches.get_one("snapshot-days").unwrap();
-    let client_id_allowlist: Option<HashSet<Uuid>> = matches
-        .get_many("allow-client-id")
-        .map(|ids| ids.copied().collect());
-
+    let server_args = ServerArgs::new(matches);
     let config = ServerConfig {
-        snapshot_days,
-        snapshot_versions,
+        snapshot_days: server_args.snapshot_days,
+        snapshot_versions: server_args.snapshot_versions,
     };
-    let server = WebServer::new(config, client_id_allowlist, SqliteStorage::new(data_dir)?);
+    let server = WebServer::new(
+        config,
+        server_args.client_id_allowlist,
+        SqliteStorage::new(server_args.data_dir)?,
+    );
 
     let mut http_server = HttpServer::new(move || {
         App::new()
@@ -88,7 +112,7 @@ async fn main() -> anyhow::Result<()> {
             .wrap(Logger::default())
             .configure(|cfg| server.config(cfg))
     });
-    for listen_address in matches.get_many::<String>("listen").unwrap() {
+    for listen_address in server_args.listen_addresses {
         log::info!("Serving on {}", listen_address);
         http_server = http_server.bind(listen_address)?
     }
@@ -104,11 +128,15 @@ mod test {
     use taskchampion_sync_server_core::InMemoryStorage;
     use temp_env::{with_var, with_var_unset, with_vars, with_vars_unset};
 
-    /// Get the list of allowed client IDs
-    fn allowed(matches: &ArgMatches) -> Option<Vec<Uuid>> {
-        matches
-            .get_many::<Uuid>("allow-client-id")
-            .map(|ids| ids.copied().collect::<Vec<_>>())
+    /// Get the list of allowed client IDs, sorted.
+    fn allowed(matches: ArgMatches) -> Option<Vec<Uuid>> {
+        ServerArgs::new(matches)
+            .client_id_allowlist
+            .map(|ids| ids.into_iter().collect::<Vec<_>>())
+            .map(|mut ids| {
+                ids.sort();
+                ids
+            })
     }
 
     #[test]
@@ -122,11 +150,7 @@ mod test {
                 "otherhost:9090",
             ]);
             assert_eq!(
-                matches
-                    .get_many::<String>("listen")
-                    .unwrap()
-                    .cloned()
-                    .collect::<Vec<String>>(),
+                ServerArgs::new(matches).listen_addresses,
                 vec!["localhost:8080".to_string(), "otherhost:9090".to_string()]
             );
         });
@@ -137,11 +161,7 @@ mod test {
         with_var("LISTEN", Some("localhost:8080,otherhost:9090"), || {
             let matches = command().get_matches_from(["tss"]);
             assert_eq!(
-                matches
-                    .get_many::<String>("listen")
-                    .unwrap()
-                    .cloned()
-                    .collect::<Vec<String>>(),
+                ServerArgs::new(matches).listen_addresses,
                 vec!["localhost:8080".to_string(), "otherhost:9090".to_string()]
             );
         });
@@ -151,7 +171,7 @@ mod test {
     fn command_allowed_client_ids_none() {
         with_var_unset("CLIENT_ID", || {
             let matches = command().get_matches_from(["tss", "--listen", "localhost:8080"]);
-            assert_eq!(allowed(&matches), None);
+            assert_eq!(allowed(matches), None);
         });
     }
 
@@ -166,7 +186,7 @@ mod test {
                 "711d5cf3-0cf0-4eb8-9eca-6f7f220638c0",
             ]);
             assert_eq!(
-                allowed(&matches),
+                allowed(matches),
                 Some(vec![Uuid::parse_str(
                     "711d5cf3-0cf0-4eb8-9eca-6f7f220638c0"
                 )
@@ -183,7 +203,7 @@ mod test {
             || {
                 let matches = command().get_matches_from(["tss", "--listen", "localhost:8080"]);
                 assert_eq!(
-                    allowed(&matches),
+                    allowed(matches),
                     Some(vec![Uuid::parse_str(
                         "711d5cf3-0cf0-4eb8-9eca-6f7f220638c0"
                     )
@@ -206,7 +226,7 @@ mod test {
                 "bbaf4b61-344a-4a39-a19e-8caa0669b353",
             ]);
             assert_eq!(
-                allowed(&matches),
+                allowed(matches),
                 Some(vec![
                     Uuid::parse_str("711d5cf3-0cf0-4eb8-9eca-6f7f220638c0").unwrap(),
                     Uuid::parse_str("bbaf4b61-344a-4a39-a19e-8caa0669b353").unwrap()
@@ -223,7 +243,7 @@ mod test {
             || {
                 let matches = command().get_matches_from(["tss", "--listen", "localhost:8080"]);
                 assert_eq!(
-                    allowed(&matches),
+                    allowed(matches),
                     Some(vec![
                         Uuid::parse_str("711d5cf3-0cf0-4eb8-9eca-6f7f220638c0").unwrap(),
                         Uuid::parse_str("bbaf4b61-344a-4a39-a19e-8caa0669b353").unwrap()
@@ -243,7 +263,7 @@ mod test {
                 "--listen",
                 "localhost:8080",
             ]);
-            assert_eq!(matches.get_one::<OsString>("data-dir").unwrap(), "/foo/bar");
+            assert_eq!(ServerArgs::new(matches).data_dir, "/foo/bar");
         });
     }
 
@@ -251,7 +271,7 @@ mod test {
     fn command_data_dir_env() {
         with_var("DATA_DIR", Some("/foo/bar"), || {
             let matches = command().get_matches_from(["tss", "--listen", "localhost:8080"]);
-            assert_eq!(matches.get_one::<OsString>("data-dir").unwrap(), "/foo/bar");
+            assert_eq!(ServerArgs::new(matches).data_dir, "/foo/bar");
         });
     }
 
@@ -267,8 +287,9 @@ mod test {
                 "--snapshot-versions",
                 "20",
             ]);
-            assert_eq!(*matches.get_one::<i64>("snapshot-days").unwrap(), 13i64);
-            assert_eq!(*matches.get_one::<u32>("snapshot-versions").unwrap(), 20u32);
+            let server_args = ServerArgs::new(matches);
+            assert_eq!(server_args.snapshot_days, 13i64);
+            assert_eq!(server_args.snapshot_versions, 20u32);
         });
     }
 
@@ -281,8 +302,9 @@ mod test {
             ],
             || {
                 let matches = command().get_matches_from(["tss", "--listen", "localhost:8080"]);
-                assert_eq!(*matches.get_one::<i64>("snapshot-days").unwrap(), 13i64);
-                assert_eq!(*matches.get_one::<u32>("snapshot-versions").unwrap(), 20u32);
+                let server_args = ServerArgs::new(matches);
+                assert_eq!(server_args.snapshot_days, 13i64);
+                assert_eq!(server_args.snapshot_versions, 20u32);
             },
         );
     }
