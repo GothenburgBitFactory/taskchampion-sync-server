@@ -103,7 +103,11 @@ release version. You can install Rust from your distribution package or use
 rustup default stable
 ```
 
-If you prefer, you can use the stable version only for install TaskChampion
+The minimum supported Rust version (MSRV) is given in
+[`Cargo.toml`](./Cargo.toml). Note that package repositories typically do not
+have sufficiently new versions of Rust.
+
+If you prefer, you can use the stable version only for installing TaskChampion
 Sync-Server (you must clone the repository first).
 ```sh
 rustup override set stable

@@ -13,6 +13,8 @@ jobs:
       # A simple matrix for now, but if we introduce an MSRV it can be added here.
       matrix:
         rust:
+          # MSRV
+          - "1.81.0"
           - "stable"
 
     runs-on: ubuntu-latest
