@@ -1,0 +1,7 @@
+*
+!Cargo.toml
+!Cargo.lock
+!core/
+!server/
+!sqlite/
+!docker-entrypoint.sh

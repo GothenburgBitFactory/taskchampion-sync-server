@@ -1,24 +1,4 @@
-volumes:
-  data:
-
 services:
-  # Make the necessary subdirectories of the `data` volume, and set ownership of the
-  # `tss/taskchampion-sync-server` directory, as the server runs as user 100.
-  mkdir:
-    image: caddy:2-alpine
-    command: |
-      /bin/sh -c "
-        mkdir -p /data/caddy/data /data/caddy/config /data/tss/taskchampion-sync-server &&
-        chown -R 100:100 /data/tss/taskchampion-sync-server
-      "
-    volumes:
-      - type: volume
-        source: data
-        target: /data
-        read_only: false
-        volume:
-          nocopy: true
-
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -26,40 +6,17 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - type: volume
-        source: data
-        target: /data
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: caddy/data
-      - type: volume
-        source: data
-        target: /config
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: caddy/config
+      - /srv/caddy/data:/data
+      - /srv/caddy/config:/config
     command: caddy reverse-proxy --from https://${TASKCHAMPION_SYNC_SERVER_HOSTNAME} --to http://tss:8080
     depends_on:
-      mkdir:
-        condition: service_completed_successfully
-
+      - tss
   tss:
     image: ghcr.io/gothenburgbitfactory/taskchampion-sync-server:0.5.0
     restart: unless-stopped
     volumes:
-      - type: volume
-        source: data
-        target: /tss
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: tss
+      - /srv/taskchampion-sync-server:/var/lib/taskchampion-sync-server/data
     environment:
       - "RUST_LOG=info"
-      - "DATA_DIR=/tss/taskchampion-sync-server"
+      - "DATA_DIR=/var/lib/taskchampion-sync-server/data"
       - "LISTEN=0.0.0.0:8080"
-    depends_on:
-      mkdir:
-        condition: service_completed_successfully
