@@ -1,3 +1,7 @@
+volumes:
+  data:
+
+
 services:
   caddy:
     image: caddy:2-alpine
@@ -6,17 +10,35 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - /srv/caddy/data:/data
-      - /srv/caddy/config:/config
+      - type: volume
+        source: data
+        target: /data
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: caddy/data
+      - type: volume
+        source: data
+        target: /config
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: caddy/config
     command: caddy reverse-proxy --from https://${TASKCHAMPION_SYNC_SERVER_HOSTNAME} --to http://tss:8080
     depends_on:
       - tss
   tss:
     image: ghcr.io/gothenburgbitfactory/taskchampion-sync-server:0.5.0
     restart: unless-stopped
-    volumes:
-      - /srv/taskchampion-sync-server:/var/lib/taskchampion-sync-server/data
     environment:
       - "RUST_LOG=info"
       - "DATA_DIR=/var/lib/taskchampion-sync-server/data"
       - "LISTEN=0.0.0.0:8080"
+    volumes:
+      - type: volume
+        source: data
+        target: /var/lib/taskchampion-sync-server/data
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: tss/taskchampion-sync-server
