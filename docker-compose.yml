@@ -3,6 +3,19 @@ volumes:
 
 
 services:
+  mkdir:
+    image: caddy:2-alpine
+    command: |
+      /bin/sh -c "
+      mkdir -p /data/caddy/data /data/caddy/config /data/tss/taskchampion-sync-server"
+    volumes:
+      - type: volume
+        source: data
+        target: /data
+        read_only: false
+        volume:
+          nocopy: true
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -24,9 +37,11 @@ services:
         volume:
           nocopy: true
           subpath: caddy/config
-    command: caddy reverse-proxy --from https://${TASKCHAMPION_SYNC_SERVER_HOSTNAME} --to http://tss:8080
+    command: caddy reverse-proxy --from http://${TASKCHAMPION_SYNC_SERVER_HOSTNAME} --to http://tss:8080
     depends_on:
-      - tss
+      mkdir:
+        condition: service_completed_successfully
+
   tss:
     image: ghcr.io/gothenburgbitfactory/taskchampion-sync-server:0.5.0
     restart: unless-stopped
@@ -42,3 +57,6 @@ services:
         volume:
           nocopy: true
           subpath: tss/taskchampion-sync-server
+    depends_on:
+      mkdir:
+        condition: service_completed_successfully
