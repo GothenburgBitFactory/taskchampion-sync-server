@@ -1,16 +1,13 @@
 volumes:
   data:
 
+
 services:
-  # Make the necessary subdirectories of the `data` volume, and set ownership of the
-  # `tss/taskchampion-sync-server` directory, as the server runs as user 100.
   mkdir:
     image: caddy:2-alpine
     command: |
       /bin/sh -c "
-        mkdir -p /data/caddy/data /data/caddy/config /data/tss/taskchampion-sync-server &&
-        chown -R 100:100 /data/tss/taskchampion-sync-server
-      "
+      mkdir -p /data/caddy/data /data/caddy/config /data/tss/taskchampion-sync-server"
     volumes:
       - type: volume
         source: data
@@ -48,18 +45,18 @@ services:
   tss:
     image: ghcr.io/gothenburgbitfactory/taskchampion-sync-server:0.5.0
     restart: unless-stopped
+    environment:
+      - "RUST_LOG=info"
+      - "DATA_DIR=/var/lib/taskchampion-sync-server/data"
+      - "LISTEN=0.0.0.0:8080"
     volumes:
       - type: volume
         source: data
-        target: /tss
+        target: /var/lib/taskchampion-sync-server/data
         read_only: false
         volume:
           nocopy: true
-          subpath: tss
-    environment:
-      - "RUST_LOG=info"
-      - "DATA_DIR=/tss/taskchampion-sync-server"
-      - "LISTEN=0.0.0.0:8080"
+          subpath: tss/taskchampion-sync-server
     depends_on:
       mkdir:
         condition: service_completed_successfully
