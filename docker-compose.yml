@@ -37,7 +37,7 @@ services:
         volume:
           nocopy: true
           subpath: caddy/config
-    command: caddy reverse-proxy --from http://${TASKCHAMPION_SYNC_SERVER_HOSTNAME} --to http://tss:8080
+    command: caddy reverse-proxy --from https://${TASKCHAMPION_SYNC_SERVER_HOSTNAME} --to http://tss:8080
     depends_on:
       mkdir:
         condition: service_completed_successfully
