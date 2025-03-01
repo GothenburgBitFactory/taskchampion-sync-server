@@ -15,9 +15,9 @@ RUN apk -U add libc-dev && \
 FROM docker.io/alpine:${ALPINE_VERSION}
 COPY --from=builder /data/target/release/taskchampion-sync-server /bin
 RUN apk add --no-cache su-exec && \
-  adduser -u 100 -S -D -H -h /var/lib/taskchampion-sync-server -s /sbin/nologin -G users \
+  adduser -u 1092 -S -D -H -h /var/lib/taskchampion-sync-server -s /sbin/nologin -G users \
   -g taskchampion taskchampion && \
-  install -d -m1755 -o100 -g100 "/var/lib/taskchampion-sync-server"
+  install -d -m1755 -o1092 -g1092 "/var/lib/taskchampion-sync-server"
 EXPOSE 8080
 VOLUME /var/lib/task-champion-sync-server/data
 COPY docker-entrypoint.sh /bin
