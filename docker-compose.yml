@@ -49,6 +49,7 @@ services:
       - "RUST_LOG=info"
       - "DATA_DIR=/var/lib/taskchampion-sync-server/data"
       - "LISTEN=0.0.0.0:8080"
+      - "CLIENT_ID=${TASKCHAMPION_SYNC_SERVER_CLIENT_ID}"
     volumes:
       - type: volume
         source: data

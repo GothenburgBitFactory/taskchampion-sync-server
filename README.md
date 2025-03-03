@@ -46,8 +46,13 @@ On that server, download `docker-compose.yml` from the link above (it is pinned
 to the latest release) into the current directory. Then run
 
 ```sh
-TASKCHAMPION_SYNC_SERVER_HOSTNAME=taskwarrior.example.com docker compose up
+TASKCHAMPION_SYNC_SERVER_HOSTNAME=taskwarrior.example.com \
+TASKCHAMPION_SYNC_SERVER_CLIENT_ID=your-client-id \
+docker compose up
 ```
+
+The `TASKCHAMPION_SYNC_SERVER_CLIENT_ID` limits the server to the given client
+ID; omit it to allow all client IDs.
 
 It can take a few minutes to obtain the certificate; the caddy container will
 log a message "certificate obtained successfully" when this is complete, or
@@ -56,8 +61,8 @@ your `.taskrc`'s to point to the server:
 
 ```
 sync.server.url=https://taskwarrior.example.com
-sync.server.client_id=[your client-id]
-sync.encryption_secret=[your encryption secret]
+sync.server.client_id=your-client-id
+sync.encryption_secret=your-encryption-secret
 ```
 
 The docker-compose images store data in a docker volume named
@@ -149,4 +154,12 @@ docker run -t -d \
 
 This start TaskChampion Sync-Server and publish the port to host. Please
 note that this is a basic run, all data will be destroyed after stop and
-delete container.
+delete container. You may also set `DATA_DIR`, `CLIENT_ID`, or `LISTEN` with `-e`, e.g.,
+
+```sh
+docker run -t -d \
+  --name=taskchampion \
+  -e LISTEN=0.0.0.0:9000 \
+  -p 9000:9000 \
+  taskchampion-sync-server
+```
