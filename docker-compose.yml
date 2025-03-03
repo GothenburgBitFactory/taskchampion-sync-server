@@ -43,7 +43,7 @@ services:
         condition: service_completed_successfully
 
   tss:
-    image: ghcr.io/gothenburgbitfactory/taskchampion-sync-server:0.6.0
+    image: ghcr.io/gothenburgbitfactory/taskchampion-sync-server:0.6.1
     restart: unless-stopped
     environment:
       - "RUST_LOG=info"
