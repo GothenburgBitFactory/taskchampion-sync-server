@@ -4,6 +4,8 @@ version = "0.6.1-pre"
 authors = ["Dustin J. Mitchell <dustin@mozilla.com>"]
 edition = "2021"
 description = "SQLite backend for TaskChampion-sync-server"
+homepage = "https://github.com/GothenburgBitFactory/taskchampion"
+repository = "https://github.com/GothenburgBitFactory/taskchampion-sync-server"
 license = "MIT"
 
 [dependencies]
