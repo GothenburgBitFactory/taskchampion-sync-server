@@ -9,7 +9,7 @@ rust-version = "1.81.0" # MSRV
 
 [workspace.dependencies]
 uuid = { version = "^1.15.1", features = ["serde", "v4"] }
-actix-web = "^4.9.0"
+actix-web = "^4.10.2"
 anyhow = "1.0"
 thiserror = "2.0"
 futures = "^0.3.25"
