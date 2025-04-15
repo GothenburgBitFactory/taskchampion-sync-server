@@ -19,7 +19,7 @@ RUN apk add --no-cache su-exec && \
   -g taskchampion taskchampion && \
   install -d -m1755 -o1092 -g1092 "/var/lib/taskchampion-sync-server"
 EXPOSE 8080
-VOLUME /var/lib/task-champion-sync-server/data
+VOLUME /var/lib/taskchampion-sync-server/data
 COPY docker-entrypoint.sh /bin
 ENTRYPOINT [ "/bin/docker-entrypoint.sh" ]
 CMD [ "/bin/taskchampion-sync-server" ]
