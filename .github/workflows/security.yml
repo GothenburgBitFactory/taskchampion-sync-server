@@ -2,7 +2,7 @@ name: security
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '33 0 * * THU'
   push:
     paths:
       - '**/Cargo.toml'
