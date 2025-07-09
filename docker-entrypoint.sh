@@ -2,7 +2,7 @@
 set -e
 echo "starting entrypoint script..."
 if [ "$1" = "/bin/taskchampion-sync-server" ]; then
-    : ${DATA_DIR:=/var/lib/taskchampion-sync-server}
+    : ${DATA_DIR:=/var/lib/taskchampion-sync-server/data}
     export DATA_DIR
     echo "setting up data directory ${DATA_DIR}"
     mkdir -p "${DATA_DIR}"
