@@ -5,7 +5,7 @@ members = [
   "server",
   "sqlite",
 ]
-rust-version = "1.81.0" # MSRV
+rust-version = "1.82.0" # MSRV
 
 [workspace.dependencies]
 uuid = { version = "^1.17.0", features = ["serde", "v4"] }
