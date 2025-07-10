@@ -59,7 +59,7 @@ fn command() -> Command {
 
 fn print_error<B>(res: ServiceResponse<B>) -> actix_web::Result<ErrorHandlerResponse<B>> {
     if let Some(err) = res.response().error() {
-        log::error!("Internal Server Error caused by:\n{:?}", err);
+        log::error!("Internal Server Error caused by:\n{err:?}");
     }
     Ok(ErrorHandlerResponse::Response(res.map_into_left_body()))
 }
@@ -113,7 +113,7 @@ async fn main() -> anyhow::Result<()> {
             .configure(|cfg| server.config(cfg))
     });
     for listen_address in server_args.listen_addresses {
-        log::info!("Serving on {}", listen_address);
+        log::info!("Serving on {listen_address}");
         http_server = http_server.bind(listen_address)?
     }
     http_server.run().await?;
