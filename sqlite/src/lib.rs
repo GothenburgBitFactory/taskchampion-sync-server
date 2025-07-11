@@ -77,8 +77,9 @@ impl SqliteStorage {
     }
 }
 
+#[async_trait::async_trait]
 impl Storage for SqliteStorage {
-    fn txn(&self, client_id: Uuid) -> anyhow::Result<Box<dyn StorageTxn + '_>> {
+    async fn txn(&self, client_id: Uuid) -> anyhow::Result<Box<dyn StorageTxn + '_>> {
         let con = self.new_connection()?;
         // Begin the transaction on this new connection. An IMMEDIATE connection is in
         // write (exclusive) mode from the start.
@@ -126,8 +127,9 @@ impl Txn {
     }
 }
 
+#[async_trait::async_trait(?Send)]
 impl StorageTxn for Txn {
-    fn get_client(&mut self) -> anyhow::Result<Option<Client>> {
+    async fn get_client(&mut self) -> anyhow::Result<Option<Client>> {
         let result: Option<Client> = self
             .con
             .query_row(
@@ -171,7 +173,7 @@ impl StorageTxn for Txn {
         Ok(result)
     }
 
-    fn new_client(&mut self, latest_version_id: Uuid) -> anyhow::Result<()> {
+    async fn new_client(&mut self, latest_version_id: Uuid) -> anyhow::Result<()> {
         self.con
             .execute(
                 "INSERT OR REPLACE INTO clients (client_id, latest_version_id) VALUES (?, ?)",
@@ -181,7 +183,7 @@ impl StorageTxn for Txn {
         Ok(())
     }
 
-    fn set_snapshot(&mut self, snapshot: Snapshot, data: Vec<u8>) -> anyhow::Result<()> {
+    async fn set_snapshot(&mut self, snapshot: Snapshot, data: Vec<u8>) -> anyhow::Result<()> {
         self.con
             .execute(
                 "UPDATE clients
@@ -203,7 +205,7 @@ impl StorageTxn for Txn {
         Ok(())
     }
 
-    fn get_snapshot_data(&mut self, version_id: Uuid) -> anyhow::Result<Option<Vec<u8>>> {
+    async fn get_snapshot_data(&mut self, version_id: Uuid) -> anyhow::Result<Option<Vec<u8>>> {
         let r = self
             .con
             .query_row(
@@ -227,7 +229,7 @@ impl StorageTxn for Txn {
         .transpose()
     }
 
-    fn get_version_by_parent(
+    async fn get_version_by_parent(
         &mut self,
 
         parent_version_id: Uuid,
@@ -238,14 +240,14 @@ impl StorageTxn for Txn {
             parent_version_id)
     }
 
-    fn get_version(&mut self, version_id: Uuid) -> anyhow::Result<Option<Version>> {
+    async fn get_version(&mut self, version_id: Uuid) -> anyhow::Result<Option<Version>> {
         self.get_version_impl(
             "SELECT version_id, parent_version_id, history_segment FROM versions WHERE version_id = ? AND client_id = ?",
             self.client_id,
             version_id)
     }
 
-    fn add_version(
+    async fn add_version(
         &mut self,
 
         version_id: Uuid,
@@ -276,7 +278,7 @@ impl StorageTxn for Txn {
         Ok(())
     }
 
-    fn commit(&mut self) -> anyhow::Result<()> {
+    async fn commit(&mut self) -> anyhow::Result<()> {
         self.con.execute("COMMIT", [])?;
         Ok(())
     }
@@ -289,47 +291,48 @@ mod test {
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 
-    #[test]
-    fn test_emtpy_dir() -> anyhow::Result<()> {
+    #[tokio::test]
+    async fn test_emtpy_dir() -> anyhow::Result<()> {
         let tmp_dir = TempDir::new()?;
         let non_existant = tmp_dir.path().join("subdir");
         let storage = SqliteStorage::new(non_existant)?;
         let client_id = Uuid::new_v4();
-        let mut txn = storage.txn(client_id)?;
-        let maybe_client = txn.get_client()?;
+        let mut txn = storage.txn(client_id).await?;
+        let maybe_client = txn.get_client().await?;
         assert!(maybe_client.is_none());
         Ok(())
     }
 
-    #[test]
-    fn test_get_client_empty() -> anyhow::Result<()> {
+    #[tokio::test]
+    async fn test_get_client_empty() -> anyhow::Result<()> {
         let tmp_dir = TempDir::new()?;
         let storage = SqliteStorage::new(tmp_dir.path())?;
         let client_id = Uuid::new_v4();
-        let mut txn = storage.txn(client_id)?;
-        let maybe_client = txn.get_client()?;
+        let mut txn = storage.txn(client_id).await?;
+        let maybe_client = txn.get_client().await?;
         assert!(maybe_client.is_none());
         Ok(())
     }
 
-    #[test]
-    fn test_client_storage() -> anyhow::Result<()> {
+    #[tokio::test]
+    async fn test_client_storage() -> anyhow::Result<()> {
         let tmp_dir = TempDir::new()?;
         let storage = SqliteStorage::new(tmp_dir.path())?;
         let client_id = Uuid::new_v4();
-        let mut txn = storage.txn(client_id)?;
+        let mut txn = storage.txn(client_id).await?;
 
         let latest_version_id = Uuid::new_v4();
-        txn.new_client(latest_version_id)?;
+        txn.new_client(latest_version_id).await?;
 
-        let client = txn.get_client()?.unwrap();
+        let client = txn.get_client().await?.unwrap();
         assert_eq!(client.latest_version_id, latest_version_id);
         assert!(client.snapshot.is_none());
 
         let latest_version_id = Uuid::new_v4();
-        txn.add_version(latest_version_id, Uuid::new_v4(), vec![1, 1])?;
+        txn.add_version(latest_version_id, Uuid::new_v4(), vec![1, 1])
+            .await?;
 
-        let client = txn.get_client()?.unwrap();
+        let client = txn.get_client().await?.unwrap();
         assert_eq!(client.latest_version_id, latest_version_id);
         assert!(client.snapshot.is_none());
 
@@ -338,37 +341,38 @@ mod test {
             timestamp: "2014-11-28T12:00:09Z".parse::<DateTime<Utc>>().unwrap(),
             versions_since: 4,
         };
-        txn.set_snapshot(snap.clone(), vec![1, 2, 3])?;
+        txn.set_snapshot(snap.clone(), vec![1, 2, 3]).await?;
 
-        let client = txn.get_client()?.unwrap();
+        let client = txn.get_client().await?.unwrap();
         assert_eq!(client.latest_version_id, latest_version_id);
         assert_eq!(client.snapshot.unwrap(), snap);
 
         Ok(())
     }
 
-    #[test]
-    fn test_gvbp_empty() -> anyhow::Result<()> {
+    #[tokio::test]
+    async fn test_gvbp_empty() -> anyhow::Result<()> {
         let tmp_dir = TempDir::new()?;
         let storage = SqliteStorage::new(tmp_dir.path())?;
         let client_id = Uuid::new_v4();
-        let mut txn = storage.txn(client_id)?;
-        let maybe_version = txn.get_version_by_parent(Uuid::new_v4())?;
+        let mut txn = storage.txn(client_id).await?;
+        let maybe_version = txn.get_version_by_parent(Uuid::new_v4()).await?;
         assert!(maybe_version.is_none());
         Ok(())
     }
 
-    #[test]
-    fn test_add_version_and_get_version() -> anyhow::Result<()> {
+    #[tokio::test]
+    async fn test_add_version_and_get_version() -> anyhow::Result<()> {
         let tmp_dir = TempDir::new()?;
         let storage = SqliteStorage::new(tmp_dir.path())?;
         let client_id = Uuid::new_v4();
-        let mut txn = storage.txn(client_id)?;
+        let mut txn = storage.txn(client_id).await?;
 
         let version_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
         let history_segment = b"abc".to_vec();
-        txn.add_version(version_id, parent_version_id, history_segment.clone())?;
+        txn.add_version(version_id, parent_version_id, history_segment.clone())
+            .await?;
 
         let expected = Version {
             version_id,
@@ -376,70 +380,72 @@ mod test {
             history_segment,
         };
 
-        let version = txn.get_version_by_parent(parent_version_id)?.unwrap();
+        let version = txn.get_version_by_parent(parent_version_id).await?.unwrap();
         assert_eq!(version, expected);
 
-        let version = txn.get_version(version_id)?.unwrap();
+        let version = txn.get_version(version_id).await?.unwrap();
         assert_eq!(version, expected);
 
         Ok(())
     }
 
-    #[test]
-    fn test_add_version_exists() -> anyhow::Result<()> {
+    #[tokio::test]
+    async fn test_add_version_exists() -> anyhow::Result<()> {
         let tmp_dir = TempDir::new()?;
         let storage = SqliteStorage::new(tmp_dir.path())?;
         let client_id = Uuid::new_v4();
-        let mut txn = storage.txn(client_id)?;
+        let mut txn = storage.txn(client_id).await?;
 
         let version_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
         let history_segment = b"abc".to_vec();
-        txn.add_version(version_id, parent_version_id, history_segment.clone())?;
+        txn.add_version(version_id, parent_version_id, history_segment.clone())
+            .await?;
         assert!(txn
             .add_version(version_id, parent_version_id, history_segment.clone())
+            .await
             .is_err());
         Ok(())
     }
 
-    #[test]
-    fn test_snapshots() -> anyhow::Result<()> {
+    #[tokio::test]
+    async fn test_snapshots() -> anyhow::Result<()> {
         let tmp_dir = TempDir::new()?;
         let storage = SqliteStorage::new(tmp_dir.path())?;
         let client_id = Uuid::new_v4();
-        let mut txn = storage.txn(client_id)?;
+        let mut txn = storage.txn(client_id).await?;
 
-        txn.new_client(Uuid::new_v4())?;
-        assert!(txn.get_client()?.unwrap().snapshot.is_none());
+        txn.new_client(Uuid::new_v4()).await?;
+        assert!(txn.get_client().await?.unwrap().snapshot.is_none());
 
         let snap = Snapshot {
             version_id: Uuid::new_v4(),
             timestamp: "2013-10-08T12:00:09Z".parse::<DateTime<Utc>>().unwrap(),
             versions_since: 3,
         };
-        txn.set_snapshot(snap.clone(), vec![9, 8, 9])?;
+        txn.set_snapshot(snap.clone(), vec![9, 8, 9]).await?;
 
         assert_eq!(
-            txn.get_snapshot_data(snap.version_id)?.unwrap(),
+            txn.get_snapshot_data(snap.version_id).await?.unwrap(),
             vec![9, 8, 9]
         );
-        assert_eq!(txn.get_client()?.unwrap().snapshot, Some(snap));
+        assert_eq!(txn.get_client().await?.unwrap().snapshot, Some(snap));
 
         let snap2 = Snapshot {
             version_id: Uuid::new_v4(),
             timestamp: "2014-11-28T12:00:09Z".parse::<DateTime<Utc>>().unwrap(),
             versions_since: 10,
         };
-        txn.set_snapshot(snap2.clone(), vec![0, 2, 4, 6])?;
+        txn.set_snapshot(snap2.clone(), vec![0, 2, 4, 6]).await?;
 
         assert_eq!(
-            txn.get_snapshot_data(snap2.version_id)?.unwrap(),
+            txn.get_snapshot_data(snap2.version_id).await?.unwrap(),
             vec![0, 2, 4, 6]
         );
-        assert_eq!(txn.get_client()?.unwrap().snapshot, Some(snap2));
+        assert_eq!(txn.get_client().await?.unwrap().snapshot, Some(snap2));
 
         // check that mismatched version is detected
-        assert!(txn.get_snapshot_data(Uuid::new_v4()).is_err());
+        assert!(txn.get_snapshot_data(Uuid::new_v4()).await.is_err());
 
         Ok(())
     }

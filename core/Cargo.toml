@@ -10,6 +10,7 @@ license = "MIT"
 
 [dependencies]
 uuid.workspace = true
+async-trait.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 log.workspace = true
@@ -18,3 +19,4 @@ chrono.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true
+tokio.workspace = true

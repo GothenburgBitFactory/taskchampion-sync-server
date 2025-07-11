@@ -60,6 +60,7 @@ pub(crate) async fn service(
         return match server_state
             .server
             .add_version(client_id, parent_version_id, body.to_vec())
+            .await
         {
             Ok((AddVersionResult::Ok(version_id), snap_urgency)) => {
                 let mut rb = HttpResponse::Ok();
@@ -85,9 +86,12 @@ pub(crate) async fn service(
                 let mut txn = server_state
                     .server
                     .txn(client_id)
+                    .await
                     .map_err(server_error_to_actix)?;
-                txn.new_client(NIL_VERSION_ID).map_err(failure_to_ise)?;
-                txn.commit().map_err(failure_to_ise)?;
+                txn.new_client(NIL_VERSION_ID)
+                    .await
+                    .map_err(failure_to_ise)?;
+                txn.commit().await.map_err(failure_to_ise)?;
                 continue;
             }
             Err(e) => Err(server_error_to_actix(e)),
@@ -113,9 +117,9 @@ mod test {
 
         // set up the storage contents..
         {
-            let mut txn = storage.txn(client_id).unwrap();
-            txn.new_client(Uuid::nil()).unwrap();
-            txn.commit().unwrap();
+            let mut txn = storage.txn(client_id).await.unwrap();
+            txn.new_client(Uuid::nil()).await.unwrap();
+            txn.commit().await.unwrap();
         }
 
         let server = WebServer::new(Default::default(), None, storage);
@@ -183,8 +187,8 @@ mod test {
 
         // Check that the client really was created
         {
-            let mut txn = server.server_state.server.txn(client_id).unwrap();
-            let client = txn.get_client().unwrap().unwrap();
+            let mut txn = server.server_state.server.txn(client_id).await.unwrap();
+            let client = txn.get_client().await.unwrap().unwrap();
             assert_eq!(client.latest_version_id, new_version_id);
             assert_eq!(client.snapshot, None);
         }
@@ -199,9 +203,9 @@ mod test {
 
         // set up the storage contents..
         {
-            let mut txn = storage.txn(client_id).unwrap();
-            txn.new_client(version_id).unwrap();
-            txn.commit().unwrap();
+            let mut txn = storage.txn(client_id).await.unwrap();
+            txn.new_client(version_id).await.unwrap();
+            txn.commit().await.unwrap();
         }
 
         let server = WebServer::new(Default::default(), None, storage);

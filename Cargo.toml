@@ -8,6 +8,7 @@ members = [
 rust-version = "1.82.0" # MSRV
 
 [workspace.dependencies]
+async-trait = "0.1.88"
 uuid = { version = "^1.17.0", features = ["serde", "v4"] }
 actix-web = "^4.11.0"
 anyhow = "1.0"
@@ -24,3 +25,4 @@ actix-rt = "2"
 tempfile = "3"
 pretty_assertions = "1"
 temp-env = "0.3"
+tokio = { version = "*", features = ["rt", "macros"] }

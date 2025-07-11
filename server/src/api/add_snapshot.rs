@@ -49,6 +49,7 @@ pub(crate) async fn service(
     server_state
         .server
         .add_snapshot(client_id, version_id, body.to_vec())
+        .await
         .map_err(server_error_to_actix)?;
     Ok(HttpResponse::Ok().body(""))
 }
@@ -70,10 +71,10 @@ mod test {
 
         // set up the storage contents..
         {
-            let mut txn = storage.txn(client_id).unwrap();
-            txn.new_client(version_id).unwrap();
-            txn.add_version(version_id, NIL_VERSION_ID, vec![])?;
-            txn.commit()?;
+            let mut txn = storage.txn(client_id).await.unwrap();
+            txn.new_client(version_id).await.unwrap();
+            txn.add_version(version_id, NIL_VERSION_ID, vec![]).await?;
+            txn.commit().await?;
         }
 
         let server = WebServer::new(Default::default(), None, storage);
@@ -114,9 +115,9 @@ mod test {
 
         // set up the storage contents..
         {
-            let mut txn = storage.txn(client_id).unwrap();
-            txn.new_client(NIL_VERSION_ID).unwrap();
-            txn.commit().unwrap();
+            let mut txn = storage.txn(client_id).await.unwrap();
+            txn.new_client(NIL_VERSION_ID).await.unwrap();
+            txn.commit().await.unwrap();
         }
 
         let server = WebServer::new(Default::default(), None, storage);

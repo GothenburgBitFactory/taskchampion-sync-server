@@ -20,6 +20,7 @@ pub(crate) async fn service(
     if let Some((version_id, data)) = server_state
         .server
         .get_snapshot(client_id)
+        .await
         .map_err(server_error_to_actix)?
     {
         Ok(HttpResponse::Ok()
@@ -48,9 +49,9 @@ mod test {
 
         // set up the storage contents..
         {
-            let mut txn = storage.txn(client_id).unwrap();
-            txn.new_client(Uuid::new_v4()).unwrap();
-            txn.commit().unwrap();
+            let mut txn = storage.txn(client_id).await.unwrap();
+            txn.new_client(Uuid::new_v4()).await.unwrap();
+            txn.commit().await.unwrap();
         }
 
         let server = WebServer::new(Default::default(), None, storage);
@@ -75,8 +76,8 @@ mod test {
 
         // set up the storage contents..
         {
-            let mut txn = storage.txn(client_id).unwrap();
-            txn.new_client(Uuid::new_v4()).unwrap();
+            let mut txn = storage.txn(client_id).await.unwrap();
+            txn.new_client(Uuid::new_v4()).await.unwrap();
             txn.set_snapshot(
                 Snapshot {
                     version_id,
@@ -85,8 +86,9 @@ mod test {
                 },
                 snapshot_data.clone(),
             )
+            .await
             .unwrap();
-            txn.commit().unwrap();
+            txn.commit().await.unwrap();
         }
 
         let server = WebServer::new(Default::default(), None, storage);

@@ -26,6 +26,7 @@ pub(crate) async fn service(
     match server_state
         .server
         .get_child_version(client_id, parent_version_id)
+        .await
     {
         Ok(GetVersionResult::Success {
             version_id,
@@ -64,11 +65,12 @@ mod test {
 
         // set up the storage contents..
         {
-            let mut txn = storage.txn(client_id).unwrap();
-            txn.new_client(Uuid::new_v4()).unwrap();
+            let mut txn = storage.txn(client_id).await.unwrap();
+            txn.new_client(Uuid::new_v4()).await.unwrap();
             txn.add_version(version_id, parent_version_id, b"abcd".to_vec())
+                .await
                 .unwrap();
-            txn.commit().unwrap();
+            txn.commit().await.unwrap();
         }
 
         let server = WebServer::new(Default::default(), None, storage);
@@ -128,11 +130,12 @@ mod test {
 
         // create the client and a single version.
         {
-            let mut txn = storage.txn(client_id).unwrap();
-            txn.new_client(Uuid::new_v4()).unwrap();
+            let mut txn = storage.txn(client_id).await.unwrap();
+            txn.new_client(Uuid::new_v4()).await.unwrap();
             txn.add_version(test_version_id, NIL_VERSION_ID, b"vers".to_vec())
+                .await
                 .unwrap();
-            txn.commit().unwrap();
+            txn.commit().await.unwrap();
         }
         let server = WebServer::new(Default::default(), None, storage);
         let app = App::new().configure(|sc| server.config(sc));
