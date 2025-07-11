@@ -53,7 +53,7 @@ mod test {
             txn.commit().unwrap();
         }
 
-        let server = WebServer::new(Default::default(), None, storage);
+        let server = WebServer::new(Default::default(), None, true, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -89,7 +89,7 @@ mod test {
             txn.commit().unwrap();
         }
 
-        let server = WebServer::new(Default::default(), None, storage);
+        let server = WebServer::new(Default::default(), None, true, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 

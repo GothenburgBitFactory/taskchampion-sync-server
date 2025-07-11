@@ -32,6 +32,7 @@ pub(crate) const SNAPSHOT_REQUEST_HEADER: &str = "X-Snapshot-Request";
 pub(crate) struct ServerState {
     pub(crate) server: Server,
     pub(crate) client_id_allowlist: Option<HashSet<Uuid>>,
+    pub(crate) create_clients: bool,
 }
 
 impl ServerState {
@@ -87,6 +88,7 @@ mod test {
         let state = ServerState {
             server: Server::new(Default::default(), InMemoryStorage::new()),
             client_id_allowlist: None,
+            create_clients: true,
         };
         let req = actix_web::test::TestRequest::default()
             .insert_header((CLIENT_ID_HEADER, client_id.to_string()))
@@ -101,6 +103,7 @@ mod test {
         let state = ServerState {
             server: Server::new(Default::default(), InMemoryStorage::new()),
             client_id_allowlist: Some([client_id_ok].into()),
+            create_clients: true,
         };
         let req = actix_web::test::TestRequest::default()
             .insert_header((CLIENT_ID_HEADER, client_id_ok.to_string()))

@@ -91,6 +91,11 @@ of UUIDs. Client IDs can be specified with `--allow-client-id`, but this should
 not be used on shared systems, as command line arguments are visible to all
 users on the system.
 
+By default, the server will create clients on first contact, so it is easy to
+start from an empty database. If you are managing clients in the database
+through some other means, disable this behavior with `--no-create-clients` or
+`CREATE_CLIENTS=false`.
+
 The server only logs errors by default. To add additional logging output, set
 environment variable `RUST_LOG` to `info` to get a log message for every
 request, or to `debug` to get more verbose debugging output.

@@ -71,7 +71,7 @@ mod test {
             txn.commit().unwrap();
         }
 
-        let server = WebServer::new(Default::default(), None, storage);
+        let server = WebServer::new(Default::default(), None, true, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -105,7 +105,7 @@ mod test {
         let client_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
         let storage = InMemoryStorage::new();
-        let server = WebServer::new(Default::default(), None, storage);
+        let server = WebServer::new(Default::default(), None, true, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -134,7 +134,7 @@ mod test {
                 .unwrap();
             txn.commit().unwrap();
         }
-        let server = WebServer::new(Default::default(), None, storage);
+        let server = WebServer::new(Default::default(), None, true, storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 

@@ -24,12 +24,14 @@ impl WebServer {
     pub fn new<ST: Storage + 'static>(
         config: ServerConfig,
         client_id_allowlist: Option<HashSet<Uuid>>,
+        create_clients: bool,
         storage: ST,
     ) -> Self {
         Self {
             server_state: Arc::new(ServerState {
                 server: Server::new(config, storage),
                 client_id_allowlist,
+                create_clients,
             }),
         }
     }
@@ -57,7 +59,7 @@ mod test {
 
     #[actix_rt::test]
     async fn test_cache_control() {
-        let server = WebServer::new(Default::default(), None, InMemoryStorage::new());
+        let server = WebServer::new(Default::default(), None, true, InMemoryStorage::new());
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
