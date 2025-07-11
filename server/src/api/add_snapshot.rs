@@ -55,11 +55,11 @@ pub(crate) async fn service(
 
 #[cfg(test)]
 mod test {
-    use crate::api::CLIENT_ID_HEADER;
     use crate::WebServer;
+    use crate::{api::CLIENT_ID_HEADER, WebConfig};
     use actix_web::{http::StatusCode, test, App};
     use pretty_assertions::assert_eq;
-    use taskchampion_sync_server_core::{InMemoryStorage, Storage, NIL_VERSION_ID};
+    use taskchampion_sync_server_core::{InMemoryStorage, ServerConfig, Storage, NIL_VERSION_ID};
     use uuid::Uuid;
 
     #[actix_rt::test]
@@ -76,7 +76,7 @@ mod test {
             txn.commit()?;
         }
 
-        let server = WebServer::new(Default::default(), None, true, storage);
+        let server = WebServer::new(ServerConfig::default(), WebConfig::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -119,7 +119,7 @@ mod test {
             txn.commit().unwrap();
         }
 
-        let server = WebServer::new(Default::default(), None, true, storage);
+        let server = WebServer::new(ServerConfig::default(), WebConfig::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -149,7 +149,7 @@ mod test {
         let client_id = Uuid::new_v4();
         let version_id = Uuid::new_v4();
         let storage = InMemoryStorage::new();
-        let server = WebServer::new(Default::default(), None, true, storage);
+        let server = WebServer::new(ServerConfig::default(), WebConfig::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -169,7 +169,7 @@ mod test {
         let client_id = Uuid::new_v4();
         let version_id = Uuid::new_v4();
         let storage = InMemoryStorage::new();
-        let server = WebServer::new(Default::default(), None, true, storage);
+        let server = WebServer::new(ServerConfig::default(), WebConfig::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 

@@ -8,7 +8,7 @@ use actix_web::{
 };
 use clap::{arg, builder::ValueParser, value_parser, ArgAction, Command};
 use std::{collections::HashSet, ffi::OsString};
-use taskchampion_sync_server::WebServer;
+use taskchampion_sync_server::{WebConfig, WebServer};
 use taskchampion_sync_server_core::ServerConfig;
 use taskchampion_sync_server_storage_sqlite::SqliteStorage;
 use uuid::Uuid;
@@ -111,8 +111,10 @@ async fn main() -> anyhow::Result<()> {
     };
     let server = WebServer::new(
         config,
-        server_args.client_id_allowlist,
-        server_args.create_clients,
+        WebConfig {
+            client_id_allowlist: server_args.client_id_allowlist,
+            create_clients: server_args.create_clients,
+        },
         SqliteStorage::new(server_args.data_dir)?,
     );
 
@@ -364,7 +366,11 @@ mod test {
 
     #[actix_rt::test]
     async fn test_index_get() {
-        let server = WebServer::new(Default::default(), None, true, InMemoryStorage::new());
+        let server = WebServer::new(
+            ServerConfig::default(),
+            WebConfig::default(),
+            InMemoryStorage::new(),
+        );
         let app = App::new().configure(|sc| server.config(sc));
         let app = actix_web::test::init_service(app).await;
 

@@ -80,7 +80,7 @@ pub(crate) async fn service(
                 rb.append_header((PARENT_VERSION_ID_HEADER, parent_version_id.to_string()));
                 Ok(rb.finish())
             }
-            Err(ServerError::NoSuchClient) if server_state.create_clients => {
+            Err(ServerError::NoSuchClient) if server_state.web_config.create_clients => {
                 // Create a new client and repeat the `add_version` call.
                 let mut txn = server_state
                     .server
@@ -97,11 +97,11 @@ pub(crate) async fn service(
 
 #[cfg(test)]
 mod test {
-    use crate::api::CLIENT_ID_HEADER;
     use crate::WebServer;
+    use crate::{api::CLIENT_ID_HEADER, WebConfig};
     use actix_web::{http::StatusCode, test, App};
     use pretty_assertions::assert_eq;
-    use taskchampion_sync_server_core::{InMemoryStorage, Storage};
+    use taskchampion_sync_server_core::{InMemoryStorage, ServerConfig, Storage};
     use uuid::Uuid;
 
     #[actix_rt::test]
@@ -118,7 +118,7 @@ mod test {
             txn.commit().unwrap();
         }
 
-        let server = WebServer::new(Default::default(), None, true, storage);
+        let server = WebServer::new(ServerConfig::default(), WebConfig::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -152,7 +152,11 @@ mod test {
         let client_id = Uuid::new_v4();
         let version_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
-        let server = WebServer::new(Default::default(), None, true, InMemoryStorage::new());
+        let server = WebServer::new(
+            ServerConfig::default(),
+            WebConfig::default(),
+            InMemoryStorage::new(),
+        );
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -195,9 +199,11 @@ mod test {
         let client_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
         let server = WebServer::new(
-            Default::default(),
-            None,
-            /*create_clients=*/ false,
+            ServerConfig::default(),
+            WebConfig {
+                create_clients: false,
+                ..WebConfig::default()
+            },
             InMemoryStorage::new(),
         );
         let app = App::new().configure(|sc| server.config(sc));
@@ -232,7 +238,7 @@ mod test {
             txn.commit().unwrap();
         }
 
-        let server = WebServer::new(Default::default(), None, true, storage);
+        let server = WebServer::new(ServerConfig::default(), WebConfig::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -260,7 +266,7 @@ mod test {
         let client_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
         let storage = InMemoryStorage::new();
-        let server = WebServer::new(Default::default(), None, true, storage);
+        let server = WebServer::new(ServerConfig::default(), WebConfig::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -280,7 +286,7 @@ mod test {
         let client_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
         let storage = InMemoryStorage::new();
-        let server = WebServer::new(Default::default(), None, true, storage);
+        let server = WebServer::new(ServerConfig::default(), WebConfig::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 

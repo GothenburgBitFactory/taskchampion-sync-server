@@ -19,19 +19,32 @@ pub struct WebServer {
     server_state: Arc<ServerState>,
 }
 
+/// Configuration for WebServer (as distinct from [`ServerConfig`]).
+pub struct WebConfig {
+    pub client_id_allowlist: Option<HashSet<Uuid>>,
+    pub create_clients: bool,
+}
+
+impl Default for WebConfig {
+    fn default() -> Self {
+        Self {
+            client_id_allowlist: Default::default(),
+            create_clients: true,
+        }
+    }
+}
+
 impl WebServer {
     /// Create a new sync server with the given storage implementation.
     pub fn new<ST: Storage + 'static>(
         config: ServerConfig,
-        client_id_allowlist: Option<HashSet<Uuid>>,
-        create_clients: bool,
+        web_config: WebConfig,
         storage: ST,
     ) -> Self {
         Self {
             server_state: Arc::new(ServerState {
                 server: Server::new(config, storage),
-                client_id_allowlist,
-                create_clients,
+                web_config,
             }),
         }
     }
@@ -59,7 +72,11 @@ mod test {
 
     #[actix_rt::test]
     async fn test_cache_control() {
-        let server = WebServer::new(Default::default(), None, true, InMemoryStorage::new());
+        let server = WebServer::new(
+            ServerConfig::default(),
+            WebConfig::default(),
+            InMemoryStorage::new(),
+        );
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 

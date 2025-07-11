@@ -33,12 +33,12 @@ pub(crate) async fn service(
 
 #[cfg(test)]
 mod test {
-    use crate::api::CLIENT_ID_HEADER;
     use crate::WebServer;
+    use crate::{api::CLIENT_ID_HEADER, WebConfig};
     use actix_web::{http::StatusCode, test, App};
     use chrono::{TimeZone, Utc};
     use pretty_assertions::assert_eq;
-    use taskchampion_sync_server_core::{InMemoryStorage, Snapshot, Storage};
+    use taskchampion_sync_server_core::{InMemoryStorage, ServerConfig, Snapshot, Storage};
     use uuid::Uuid;
 
     #[actix_rt::test]
@@ -53,7 +53,7 @@ mod test {
             txn.commit().unwrap();
         }
 
-        let server = WebServer::new(Default::default(), None, true, storage);
+        let server = WebServer::new(ServerConfig::default(), WebConfig::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -89,7 +89,7 @@ mod test {
             txn.commit().unwrap();
         }
 
-        let server = WebServer::new(Default::default(), None, true, storage);
+        let server = WebServer::new(ServerConfig::default(), WebConfig::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
