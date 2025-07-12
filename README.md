@@ -20,7 +20,8 @@ for more on how to use this project.
 The repository is comprised of three crates:
 
  - `taskchampion-sync-server-core` implements the core of the protocol
- - `taskchmpaion-sync-server-sqlite` implements an SQLite backend for the core
+ - `taskchmpaion-sync-server-storage-sqlite` implements an SQLite backend for the core
+ - `taskchmpaion-sync-server-storage-posrgres` implements a Postgres backend for the core
  - `taskchampion-sync-server` implements a simple HTTP server for the protocol
 
 ### Building From Source

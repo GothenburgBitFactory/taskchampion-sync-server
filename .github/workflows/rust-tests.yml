@@ -11,13 +11,32 @@ jobs:
   test:
     strategy:
       matrix:
+        postgres:
+          - "17"
         rust:
           # MSRV
-          - "1.82.0"
+          - "1.85.0"
           - "stable"
 
     runs-on: ubuntu-latest
-    name: "rust ${{ matrix.rust }}"
+    name: "rust ${{ matrix.rust }} / postgres ${{ matrix.postgres }}"
+
+    services:
+      # Service container for PostgreSQL
+      postgres:
+        image: "postgres:${{ matrix.postgres }}"
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        # Set health checks to ensure Postgres is ready before the job starts
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -40,4 +59,4 @@ jobs:
           override: true
 
       - name: test
-        run: cargo test
+        run: TEST_DB_URL=postgresql://test_user:test_password@localhost:5432/test_db cargo test
