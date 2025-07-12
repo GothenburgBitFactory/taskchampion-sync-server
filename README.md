@@ -85,11 +85,20 @@ list of values.
 The `--data-dir` option specifies where the server should store its data. This
 value can be specified in the environment variable `DATA_DIR`.
 
-By default, the server allows all client IDs. To limit the accepted client IDs,
-specify them in the environment variable `CLIENT_ID`, as a comma-separated list
-of UUIDs. Client IDs can be specified with `--allow-client-id`, but this should
-not be used on shared systems, as command line arguments are visible to all
-users on the system.
+By default, the server will allow all clients and create them in the database
+on first contact. There are two ways to limit the clients the server will
+interact with:
+
+- To limit the accepted client IDs, specify them in the environment variable
+`CLIENT_ID`, as a comma-separated list of UUIDs. Client IDs can be specified
+with `--allow-client-id`, but this should not be used on shared systems, as
+command line arguments are visible to all users on the system. This convenient
+option is suitable for personal and small-scale deployments.
+
+- To disable the automatic creation of clients, use the `--no-create-clients`
+flag or the `CREATE_CLIENTS=false` environment variable. You are now
+responsible for creating clients in the database manually, so this option is
+more suitable for large scale deployments.
 
 The server only logs errors by default. To add additional logging output, set
 environment variable `RUST_LOG` to `info` to get a log message for every

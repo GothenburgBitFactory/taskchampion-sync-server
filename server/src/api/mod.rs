@@ -1,8 +1,7 @@
-use std::collections::HashSet;
-
 use actix_web::{error, web, HttpRequest, Result, Scope};
 use taskchampion_sync_server_core::{ClientId, Server, ServerError};
-use uuid::Uuid;
+
+use crate::WebConfig;
 
 mod add_snapshot;
 mod add_version;
@@ -31,7 +30,7 @@ pub(crate) const SNAPSHOT_REQUEST_HEADER: &str = "X-Snapshot-Request";
 /// The type containing a reference to the persistent state for the server
 pub(crate) struct ServerState {
     pub(crate) server: Server,
-    pub(crate) client_id_allowlist: Option<HashSet<Uuid>>,
+    pub(crate) web_config: WebConfig,
 }
 
 impl ServerState {
@@ -43,7 +42,7 @@ impl ServerState {
         if let Some(client_id_hdr) = req.headers().get(CLIENT_ID_HEADER) {
             let client_id = client_id_hdr.to_str().map_err(|_| badrequest())?;
             let client_id = ClientId::parse_str(client_id).map_err(|_| badrequest())?;
-            if let Some(allow_list) = &self.client_id_allowlist {
+            if let Some(allow_list) = &self.web_config.client_id_allowlist {
                 if !allow_list.contains(&client_id) {
                     return Err(error::ErrorForbidden("unknown x-client-id"));
                 }
@@ -80,13 +79,17 @@ fn server_error_to_actix(err: ServerError) -> actix_web::Error {
 mod test {
     use super::*;
     use taskchampion_sync_server_core::InMemoryStorage;
+    use uuid::Uuid;
 
     #[test]
     fn client_id_header_allow_all() {
         let client_id = Uuid::new_v4();
         let state = ServerState {
             server: Server::new(Default::default(), InMemoryStorage::new()),
-            client_id_allowlist: None,
+            web_config: WebConfig {
+                client_id_allowlist: None,
+                create_clients: true,
+            },
         };
         let req = actix_web::test::TestRequest::default()
             .insert_header((CLIENT_ID_HEADER, client_id.to_string()))
@@ -100,7 +103,10 @@ mod test {
         let client_id_disallowed = Uuid::new_v4();
         let state = ServerState {
             server: Server::new(Default::default(), InMemoryStorage::new()),
-            client_id_allowlist: Some([client_id_ok].into()),
+            web_config: WebConfig {
+                client_id_allowlist: Some([client_id_ok].into()),
+                create_clients: true,
+            },
         };
         let req = actix_web::test::TestRequest::default()
             .insert_header((CLIENT_ID_HEADER, client_id_ok.to_string()))

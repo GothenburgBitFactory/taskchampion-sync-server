@@ -48,11 +48,11 @@ pub(crate) async fn service(
 
 #[cfg(test)]
 mod test {
-    use crate::api::CLIENT_ID_HEADER;
     use crate::WebServer;
+    use crate::{api::CLIENT_ID_HEADER, WebConfig};
     use actix_web::{http::StatusCode, test, App};
     use pretty_assertions::assert_eq;
-    use taskchampion_sync_server_core::{InMemoryStorage, Storage, NIL_VERSION_ID};
+    use taskchampion_sync_server_core::{InMemoryStorage, ServerConfig, Storage, NIL_VERSION_ID};
     use uuid::Uuid;
 
     #[actix_rt::test]
@@ -71,11 +71,11 @@ mod test {
             txn.commit().unwrap();
         }
 
-        let server = WebServer::new(Default::default(), None, storage);
+        let server = WebServer::new(ServerConfig::default(), WebConfig::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
-        let uri = format!("/v1/client/get-child-version/{}", parent_version_id);
+        let uri = format!("/v1/client/get-child-version/{parent_version_id}");
         let req = test::TestRequest::get()
             .uri(&uri)
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
@@ -105,11 +105,11 @@ mod test {
         let client_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
         let storage = InMemoryStorage::new();
-        let server = WebServer::new(Default::default(), None, storage);
+        let server = WebServer::new(ServerConfig::default(), WebConfig::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
-        let uri = format!("/v1/client/get-child-version/{}", parent_version_id);
+        let uri = format!("/v1/client/get-child-version/{parent_version_id}");
         let req = test::TestRequest::get()
             .uri(&uri)
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
@@ -134,12 +134,12 @@ mod test {
                 .unwrap();
             txn.commit().unwrap();
         }
-        let server = WebServer::new(Default::default(), None, storage);
+        let server = WebServer::new(ServerConfig::default(), WebConfig::default(), storage);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
         // the child of the nil version is the added version
-        let uri = format!("/v1/client/get-child-version/{}", NIL_VERSION_ID);
+        let uri = format!("/v1/client/get-child-version/{NIL_VERSION_ID}");
         let req = test::TestRequest::get()
             .uri(&uri)
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))
@@ -168,7 +168,7 @@ mod test {
 
         // The child of the latest version is NOT_FOUND. The tests in crate::server test more
         // corner cases.
-        let uri = format!("/v1/client/get-child-version/{}", test_version_id);
+        let uri = format!("/v1/client/get-child-version/{test_version_id}");
         let req = test::TestRequest::get()
             .uri(&uri)
             .append_header((CLIENT_ID_HEADER, client_id.to_string()))

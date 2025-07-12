@@ -8,7 +8,7 @@ use actix_web::{
 };
 use clap::{arg, builder::ValueParser, value_parser, ArgAction, Command};
 use std::{collections::HashSet, ffi::OsString};
-use taskchampion_sync_server::WebServer;
+use taskchampion_sync_server::{WebConfig, WebServer};
 use taskchampion_sync_server_core::ServerConfig;
 use taskchampion_sync_server_storage_sqlite::SqliteStorage;
 use uuid::Uuid;
@@ -44,6 +44,13 @@ fn command() -> Command {
                 .required(false),
         )
         .arg(
+            arg!("create-clients": --"no-create-clients" "If a client does not exist in the database, do not create it")
+                .env("CREATE_CLIENTS")
+                .default_value("true")
+                .action(ArgAction::SetFalse)
+                .required(false),
+        )
+        .arg(
             arg!(--"snapshot-versions" <NUM> "Target number of versions between snapshots")
                 .value_parser(value_parser!(u32))
                 .env("SNAPSHOT_VERSIONS")
@@ -69,6 +76,7 @@ struct ServerArgs {
     snapshot_versions: u32,
     snapshot_days: i64,
     client_id_allowlist: Option<HashSet<Uuid>>,
+    create_clients: bool,
     listen_addresses: Vec<String>,
 }
 
@@ -81,6 +89,7 @@ impl ServerArgs {
             client_id_allowlist: matches
                 .get_many("allow-client-id")
                 .map(|ids| ids.copied().collect()),
+            create_clients: matches.get_one("create-clients").copied().unwrap_or(true),
             listen_addresses: matches
                 .get_many::<String>("listen")
                 .unwrap()
@@ -102,7 +111,10 @@ async fn main() -> anyhow::Result<()> {
     };
     let server = WebServer::new(
         config,
-        server_args.client_id_allowlist,
+        WebConfig {
+            client_id_allowlist: server_args.client_id_allowlist,
+            create_clients: server_args.create_clients,
+        },
         SqliteStorage::new(server_args.data_dir)?,
     );
 
@@ -122,6 +134,8 @@ async fn main() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod test {
+    #![allow(clippy::bool_assert_comparison)]
+
     use super::*;
     use actix_web::{self, App};
     use clap::ArgMatches;
@@ -309,9 +323,54 @@ mod test {
         );
     }
 
+    #[test]
+    fn command_create_clients_default() {
+        with_var_unset("CREATE_CLIENTS", || {
+            let matches = command().get_matches_from(["tss", "--listen", "localhost:8080"]);
+            let server_args = ServerArgs::new(matches);
+            assert_eq!(server_args.create_clients, true);
+        });
+    }
+
+    #[test]
+    fn command_create_clients_cmdline() {
+        with_var_unset("CREATE_CLIENTS", || {
+            let matches = command().get_matches_from([
+                "tss",
+                "--listen",
+                "localhost:8080",
+                "--no-create-clients",
+            ]);
+            let server_args = ServerArgs::new(matches);
+            assert_eq!(server_args.create_clients, false);
+        });
+    }
+
+    #[test]
+    fn command_create_clients_env_true() {
+        with_vars([("CREATE_CLIENTS", Some("true"))], || {
+            let matches = command().get_matches_from(["tss", "--listen", "localhost:8080"]);
+            let server_args = ServerArgs::new(matches);
+            assert_eq!(server_args.create_clients, true);
+        });
+    }
+
+    #[test]
+    fn command_create_clients_env_false() {
+        with_vars([("CREATE_CLIENTS", Some("false"))], || {
+            let matches = command().get_matches_from(["tss", "--listen", "localhost:8080"]);
+            let server_args = ServerArgs::new(matches);
+            assert_eq!(server_args.create_clients, false);
+        });
+    }
+
     #[actix_rt::test]
     async fn test_index_get() {
-        let server = WebServer::new(Default::default(), None, InMemoryStorage::new());
+        let server = WebServer::new(
+            ServerConfig::default(),
+            WebConfig::default(),
+            InMemoryStorage::new(),
+        );
         let app = App::new().configure(|sc| server.config(sc));
         let app = actix_web::test::init_service(app).await;
 
