@@ -1573,7 +1573,7 @@ dependencies = [
 
 [[package]]
 name = "taskchampion-sync-server"
-version = "0.6.2-pre"
+version = "0.7.0-pre"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1596,7 +1596,7 @@ dependencies = [
 
 [[package]]
 name = "taskchampion-sync-server-core"
-version = "0.6.2-pre"
+version = "0.7.0-pre"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1611,7 +1611,7 @@ dependencies = [
 
 [[package]]
 name = "taskchampion-sync-server-storage-sqlite"
-version = "0.6.2-pre"
+version = "0.7.0-pre"
 dependencies = [
  "anyhow",
  "async-trait",
