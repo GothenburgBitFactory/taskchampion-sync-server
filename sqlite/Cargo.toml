@@ -1,6 +1,6 @@
 [package]
 name = "taskchampion-sync-server-storage-sqlite"
-version = "0.6.2-pre"
+version = "0.7.0-pre"
 authors = ["Dustin J. Mitchell <dustin@mozilla.com>"]
 edition = "2021"
 description = "SQLite backend for TaskChampion-sync-server"
@@ -9,7 +9,8 @@ repository = "https://github.com/GothenburgBitFactory/taskchampion-sync-server"
 license = "MIT"
 
 [dependencies]
-taskchampion-sync-server-core = { path = "../core", version = "0.6.2-pre" }
+taskchampion-sync-server-core = { path = "../core", version = "0.7.0-pre" }
+async-trait.workspace = true
 uuid.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
@@ -19,3 +20,4 @@ chrono.workspace = true
 [dev-dependencies]
 tempfile.workspace = true
 pretty_assertions.workspace = true
+tokio.workspace = true

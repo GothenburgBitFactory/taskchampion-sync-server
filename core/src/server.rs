@@ -106,17 +106,17 @@ impl Server {
     }
 
     /// Implementation of the GetChildVersion protocol transaction.
-    pub fn get_child_version(
+    pub async fn get_child_version(
         &self,
         client_id: ClientId,
         parent_version_id: VersionId,
     ) -> Result<GetVersionResult, ServerError> {
-        let mut txn = self.storage.txn(client_id)?;
-        let client = txn.get_client()?.ok_or(ServerError::NoSuchClient)?;
+        let mut txn = self.txn(client_id).await?;
+        let client = txn.get_client().await?.ok_or(ServerError::NoSuchClient)?;
 
         // If a version with parentVersionId equal to the requested parentVersionId exists, it is
         // returned.
-        if let Some(version) = txn.get_version_by_parent(parent_version_id)? {
+        if let Some(version) = txn.get_version_by_parent(parent_version_id).await? {
             return Ok(GetVersionResult::Success {
                 version_id: version.version_id,
                 parent_version_id: version.parent_version_id,
@@ -142,7 +142,7 @@ impl Server {
     }
 
     /// Implementation of the AddVersion protocol transaction
-    pub fn add_version(
+    pub async fn add_version(
         &self,
         client_id: ClientId,
         parent_version_id: VersionId,
@@ -150,8 +150,8 @@ impl Server {
     ) -> Result<(AddVersionResult, SnapshotUrgency), ServerError> {
         log::debug!("add_version(client_id: {client_id}, parent_version_id: {parent_version_id})");
 
-        let mut txn = self.storage.txn(client_id)?;
-        let client = txn.get_client()?.ok_or(ServerError::NoSuchClient)?;
+        let mut txn = self.txn(client_id).await?;
+        let client = txn.get_client().await?.ok_or(ServerError::NoSuchClient)?;
 
         // check if this version is acceptable, under the protection of the transaction
         if client.latest_version_id != NIL_VERSION_ID
@@ -169,8 +169,9 @@ impl Server {
         log::debug!("add_version request accepted: new version_id: {version_id}");
 
         // update the DB
-        txn.add_version(version_id, parent_version_id, history_segment)?;
-        txn.commit()?;
+        txn.add_version(version_id, parent_version_id, history_segment)
+            .await?;
+        txn.commit().await?;
 
         // calculate the urgency
         let time_urgency = match client.snapshot {
@@ -194,7 +195,7 @@ impl Server {
     }
 
     /// Implementation of the AddSnapshot protocol transaction
-    pub fn add_snapshot(
+    pub async fn add_snapshot(
         &self,
         client_id: ClientId,
         version_id: VersionId,
@@ -202,8 +203,8 @@ impl Server {
     ) -> Result<(), ServerError> {
         log::debug!("add_snapshot(client_id: {client_id}, version_id: {version_id})");
 
-        let mut txn = self.storage.txn(client_id)?;
-        let client = txn.get_client()?.ok_or(ServerError::NoSuchClient)?;
+        let mut txn = self.txn(client_id).await?;
+        let client = txn.get_client().await?.ok_or(ServerError::NoSuchClient)?;
 
         // NOTE: if the snapshot is rejected, this function logs about it and returns
         // Ok(()), as there's no reason to report an errot to the client / user.
@@ -239,7 +240,7 @@ impl Server {
             }
 
             // get the parent version ID
-            if let Some(parent) = txn.get_version(vid)? {
+            if let Some(parent) = txn.get_version(vid).await? {
                 vid = parent.parent_version_id;
             } else {
                 // this version does not exist; "this should not happen" but if it does,
@@ -257,21 +258,23 @@ impl Server {
                 versions_since: 0,
             },
             data,
-        )?;
-        txn.commit()?;
+        )
+        .await?;
+        txn.commit().await?;
         Ok(())
     }
 
     /// Implementation of the GetSnapshot protocol transaction
-    pub fn get_snapshot(
+    pub async fn get_snapshot(
         &self,
         client_id: ClientId,
     ) -> Result<Option<(Uuid, Vec<u8>)>, ServerError> {
-        let mut txn = self.storage.txn(client_id)?;
-        let client = txn.get_client()?.ok_or(ServerError::NoSuchClient)?;
+        let mut txn = self.txn(client_id).await?;
+        let client = txn.get_client().await?.ok_or(ServerError::NoSuchClient)?;
 
         Ok(if let Some(snap) = client.snapshot {
-            txn.get_snapshot_data(snap.version_id)?
+            txn.get_snapshot_data(snap.version_id)
+                .await?
                 .map(|data| (snap.version_id, data))
         } else {
             None
@@ -279,8 +282,8 @@ impl Server {
     }
 
     /// Convenience method to get a transaction for the embedded storage.
-    pub fn txn(&self, client_id: Uuid) -> Result<Box<dyn StorageTxn + '_>, ServerError> {
-        Ok(self.storage.txn(client_id)?)
+    pub async fn txn(&self, client_id: Uuid) -> Result<Box<dyn StorageTxn + '_>, ServerError> {
+        Ok(self.storage.txn(client_id).await?)
     }
 }
 
@@ -288,68 +291,83 @@ impl Server {
 mod test {
     use super::*;
     use crate::inmemory::InMemoryStorage;
-    use crate::storage::{Snapshot, Storage, StorageTxn};
+    use crate::storage::{Snapshot, Storage};
     use chrono::{Duration, TimeZone, Utc};
     use pretty_assertions::assert_eq;
 
-    fn setup<INIT, RES>(init: INIT) -> anyhow::Result<(Server, RES)>
-    where
-        INIT: FnOnce(&mut dyn StorageTxn, Uuid) -> anyhow::Result<RES>,
-    {
+    /// Set up for a test, returning storage and a client_id.
+    fn setup() -> (InMemoryStorage, Uuid) {
         let _ = env_logger::builder().is_test(true).try_init();
         let storage = InMemoryStorage::new();
         let client_id = Uuid::new_v4();
-        let res;
-        {
-            let mut txn = storage.txn(client_id)?;
-            res = init(txn.as_mut(), client_id)?;
-            txn.commit()?;
-        }
-        Ok((Server::new(ServerConfig::default(), storage), res))
+        (storage, client_id)
     }
 
+    /// Convert storage into a Server.
+    fn into_server(storage: InMemoryStorage) -> Server {
+        Server::new(ServerConfig::default(), storage)
+    }
+
+    /// Add versions to the DB for the given client.
+    async fn add_versions(
+        storage: &InMemoryStorage,
+        client_id: Uuid,
+        num_versions: u32,
+        snapshot_version: Option<u32>,
+        snapshot_days_ago: Option<i64>,
+    ) -> anyhow::Result<Vec<Uuid>> {
+        let mut txn = storage.txn(client_id).await?;
+        let mut versions = vec![];
+
+        let mut version_id = Uuid::nil();
+        txn.new_client(Uuid::nil()).await?;
+        debug_assert!(num_versions < u8::MAX.into());
+        for vnum in 0..num_versions {
+            let parent_version_id = version_id;
+            version_id = Uuid::new_v4();
+            versions.push(version_id);
+            txn.add_version(
+                version_id,
+                parent_version_id,
+                // Generate some unique data for this version.
+                vec![0, 0, vnum as u8],
+            )
+            .await?;
+            if Some(vnum) == snapshot_version {
+                txn.set_snapshot(
+                    Snapshot {
+                        version_id,
+                        versions_since: 0,
+                        timestamp: Utc::now() - Duration::days(snapshot_days_ago.unwrap_or(0)),
+                    },
+                    // Generate some unique data for this snapshot.
+                    vec![vnum as u8],
+                )
+                .await?;
+            }
+        }
+        txn.commit().await?;
+        Ok(versions)
+    }
+
+    /*
     /// Utility setup function for add_version tests
-    fn av_setup(
+    async fn av_setup(
         num_versions: u32,
         snapshot_version: Option<u32>,
         snapshot_days_ago: Option<i64>,
     ) -> anyhow::Result<(Server, Uuid, Vec<Uuid>)> {
-        let (server, (client_id, versions)) = setup(|txn, client_id| {
-            let mut versions = vec![];
-
-            let mut version_id = Uuid::nil();
-            txn.new_client(Uuid::nil())?;
-            debug_assert!(num_versions < u8::MAX.into());
-            for vnum in 0..num_versions {
-                let parent_version_id = version_id;
-                version_id = Uuid::new_v4();
-                versions.push(version_id);
-                txn.add_version(
-                    version_id,
-                    parent_version_id,
-                    // Generate some unique data for this version.
-                    vec![0, 0, vnum as u8],
-                )?;
-                if Some(vnum) == snapshot_version {
-                    txn.set_snapshot(
-                        Snapshot {
-                            version_id,
-                            versions_since: 0,
-                            timestamp: Utc::now() - Duration::days(snapshot_days_ago.unwrap_or(0)),
-                        },
-                        // Generate some unique data for this snapshot.
-                        vec![vnum as u8],
-                    )?;
-                }
-            }
+        let (server, (client_id, versions)) = setup(async |txn, client_id| {
 
             Ok((client_id, versions))
-        })?;
+        })
+        .await?;
         Ok((server, client_id, versions))
     }
+    */
 
     /// Utility function to check the results of an add_version call
-    fn av_success_check(
+    async fn av_success_check(
         server: &Server,
         client_id: Uuid,
         existing_versions: &[Uuid],
@@ -364,17 +382,17 @@ mod test {
             }
 
             // verify that the storage was updated
-            let mut txn = server.txn(client_id)?;
-            let client = txn.get_client()?.unwrap();
+            let mut txn = server.txn(client_id).await?;
+            let client = txn.get_client().await?.unwrap();
             assert_eq!(client.latest_version_id, new_version_id);
 
             let parent_version_id = existing_versions.last().cloned().unwrap_or_else(Uuid::nil);
-            let version = txn.get_version(new_version_id)?.unwrap();
+            let version = txn.get_version(new_version_id).await?.unwrap();
             assert_eq!(version.version_id, new_version_id);
             assert_eq!(version.parent_version_id, parent_version_id);
             assert_eq!(version.history_segment, expected_history);
         } else {
-            panic!("did not get Ok from add_version: {:?}", add_version_result);
+            panic!("did not get Ok from add_version: {add_version_result:?}");
         }
 
         assert_eq!(snapshot_urgency, expected_urgency);
@@ -426,89 +444,108 @@ mod test {
         );
     }
 
-    #[test]
-    fn get_child_version_not_found_initial_nil() -> anyhow::Result<()> {
-        let (server, client_id) = setup(|txn, client_id| {
-            txn.new_client(NIL_VERSION_ID)?;
+    #[tokio::test]
+    async fn get_child_version_not_found_initial_nil() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        {
+            let mut txn = storage.txn(client_id).await?;
+            txn.new_client(NIL_VERSION_ID).await?;
+            txn.commit().await?;
+        }
 
-            Ok(client_id)
-        })?;
+        let server = into_server(storage);
+
         // when no latest version exists, the first version is NotFound
         assert_eq!(
-            server.get_child_version(client_id, NIL_VERSION_ID)?,
+            server.get_child_version(client_id, NIL_VERSION_ID).await?,
             GetVersionResult::NotFound
         );
         Ok(())
     }
 
-    #[test]
-    fn get_child_version_not_found_initial_continuing() -> anyhow::Result<()> {
-        let (server, client_id) = setup(|txn, client_id| {
-            txn.new_client(NIL_VERSION_ID)?;
+    #[tokio::test]
+    async fn get_child_version_not_found_initial_continuing() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        {
+            let mut txn = storage.txn(client_id).await?;
+            txn.new_client(NIL_VERSION_ID).await?;
+            txn.commit().await?;
+        }
 
-            Ok(client_id)
-        })?;
+        let server = into_server(storage);
 
         // when no latest version exists, _any_ child version is NOT_FOUND. This allows syncs to
         // start to a new server even if the client already has been uploading to another service.
         assert_eq!(
-            server.get_child_version(client_id, Uuid::new_v4(),)?,
+            server.get_child_version(client_id, Uuid::new_v4(),).await?,
             GetVersionResult::NotFound
         );
         Ok(())
     }
 
-    #[test]
-    fn get_child_version_not_found_up_to_date() -> anyhow::Result<()> {
-        let (server, (client_id, parent_version_id)) = setup(|txn, client_id| {
+    #[tokio::test]
+    async fn get_child_version_not_found_up_to_date() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        let parent_version_id = Uuid::new_v4();
+        {
+            let mut txn = storage.txn(client_id).await?;
             // add a parent version, but not the requested child version
-            let parent_version_id = Uuid::new_v4();
-            txn.new_client(parent_version_id)?;
-            txn.add_version(parent_version_id, NIL_VERSION_ID, vec![])?;
+            txn.new_client(parent_version_id).await?;
+            txn.add_version(parent_version_id, NIL_VERSION_ID, vec![])
+                .await?;
+            txn.commit().await?;
+        }
 
-            Ok((client_id, parent_version_id))
-        })?;
-
+        let server = into_server(storage);
         assert_eq!(
-            server.get_child_version(client_id, parent_version_id)?,
+            server
+                .get_child_version(client_id, parent_version_id)
+                .await?,
             GetVersionResult::NotFound
         );
         Ok(())
     }
 
-    #[test]
-    fn get_child_version_gone_not_latest() -> anyhow::Result<()> {
-        let (server, client_id) = setup(|txn, client_id| {
+    #[tokio::test]
+    async fn get_child_version_gone_not_latest() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        let parent_version_id = Uuid::new_v4();
+        {
+            let mut txn = storage.txn(client_id).await?;
             // Add a parent version, but not the requested parent version
-            let parent_version_id = Uuid::new_v4();
-            txn.new_client(parent_version_id)?;
-            txn.add_version(parent_version_id, NIL_VERSION_ID, vec![])?;
+            txn.new_client(parent_version_id).await?;
+            txn.add_version(parent_version_id, NIL_VERSION_ID, vec![])
+                .await?;
+            txn.commit().await?;
+        }
 
-            Ok(client_id)
-        })?;
-
+        let server = into_server(storage);
         assert_eq!(
-            server.get_child_version(client_id, Uuid::new_v4(),)?,
+            server.get_child_version(client_id, Uuid::new_v4(),).await?,
             GetVersionResult::Gone
         );
         Ok(())
     }
 
-    #[test]
-    fn get_child_version_found() -> anyhow::Result<()> {
-        let (server, (client_id, version_id, parent_version_id, history_segment)) =
-            setup(|txn, client_id| {
-                let version_id = Uuid::new_v4();
-                let parent_version_id = Uuid::new_v4();
-                let history_segment = b"abcd".to_vec();
+    #[tokio::test]
+    async fn get_child_version_found() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        let version_id = Uuid::new_v4();
+        let parent_version_id = Uuid::new_v4();
+        let history_segment = b"abcd".to_vec();
+        {
+            let mut txn = storage.txn(client_id).await?;
+            txn.new_client(version_id).await?;
+            txn.add_version(version_id, parent_version_id, history_segment.clone())
+                .await?;
+            txn.commit().await?;
+        }
 
-                txn.new_client(version_id)?;
-                txn.add_version(version_id, parent_version_id, history_segment.clone())?;
-
-                Ok((client_id, version_id, parent_version_id, history_segment))
-            })?;
+        let server = into_server(storage);
         assert_eq!(
-            server.get_child_version(client_id, parent_version_id)?,
+            server
+                .get_child_version(client_id, parent_version_id)
+                .await?,
             GetVersionResult::Success {
                 version_id,
                 parent_version_id,
@@ -518,29 +555,41 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn add_version_conflict() -> anyhow::Result<()> {
-        let (server, client_id, versions) = av_setup(3, None, None)?;
+    #[tokio::test]
+    async fn add_version_conflict() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        let versions = add_versions(&storage, client_id, 3, None, None).await?;
 
         // try to add a child of a version other than the latest
+        let server = into_server(storage);
         assert_eq!(
-            server.add_version(client_id, versions[1], vec![3, 6, 9])?.0,
+            server
+                .add_version(client_id, versions[1], vec![3, 6, 9])
+                .await?
+                .0,
             AddVersionResult::ExpectedParentVersion(versions[2])
         );
 
         // verify that the storage wasn't updated
-        let mut txn = server.txn(client_id)?;
-        assert_eq!(txn.get_client()?.unwrap().latest_version_id, versions[2]);
-        assert_eq!(txn.get_version_by_parent(versions[2])?, None);
+        let mut txn = server.txn(client_id).await?;
+        assert_eq!(
+            txn.get_client().await?.unwrap().latest_version_id,
+            versions[2]
+        );
+        assert_eq!(txn.get_version_by_parent(versions[2]).await?, None);
 
         Ok(())
     }
 
-    #[test]
-    fn add_version_with_existing_history() -> anyhow::Result<()> {
-        let (server, client_id, versions) = av_setup(1, None, None)?;
+    #[tokio::test]
+    async fn add_version_with_existing_history() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        let versions = add_versions(&storage, client_id, 1, None, None).await?;
 
-        let result = server.add_version(client_id, versions[0], vec![3, 6, 9])?;
+        let server = into_server(storage);
+        let result = server
+            .add_version(client_id, versions[0], vec![3, 6, 9])
+            .await?;
 
         av_success_check(
             &server,
@@ -550,17 +599,22 @@ mod test {
             vec![3, 6, 9],
             // urgency=high because there are no snapshots yet
             SnapshotUrgency::High,
-        )?;
+        )
+        .await?;
 
         Ok(())
     }
 
-    #[test]
-    fn add_version_with_no_history() -> anyhow::Result<()> {
-        let (server, client_id, versions) = av_setup(0, None, None)?;
+    #[tokio::test]
+    async fn add_version_with_no_history() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        let versions = add_versions(&storage, client_id, 0, None, None).await?;
 
+        let server = into_server(storage);
         let parent_version_id = Uuid::nil();
-        let result = server.add_version(client_id, parent_version_id, vec![3, 6, 9])?;
+        let result = server
+            .add_version(client_id, parent_version_id, vec![3, 6, 9])
+            .await?;
 
         av_success_check(
             &server,
@@ -570,16 +624,21 @@ mod test {
             vec![3, 6, 9],
             // urgency=high because there are no snapshots yet
             SnapshotUrgency::High,
-        )?;
+        )
+        .await?;
 
         Ok(())
     }
 
-    #[test]
-    fn add_version_success_recent_snapshot() -> anyhow::Result<()> {
-        let (server, client_id, versions) = av_setup(1, Some(0), None)?;
+    #[tokio::test]
+    async fn add_version_success_recent_snapshot() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        let versions = add_versions(&storage, client_id, 1, Some(0), None).await?;
 
-        let result = server.add_version(client_id, versions[0], vec![1, 2, 3])?;
+        let server = into_server(storage);
+        let result = server
+            .add_version(client_id, versions[0], vec![1, 2, 3])
+            .await?;
 
         av_success_check(
             &server,
@@ -589,17 +648,22 @@ mod test {
             vec![1, 2, 3],
             // no snapshot request since the previous version has a snapshot
             SnapshotUrgency::None,
-        )?;
+        )
+        .await?;
 
         Ok(())
     }
 
-    #[test]
-    fn add_version_success_aged_snapshot() -> anyhow::Result<()> {
+    #[tokio::test]
+    async fn add_version_success_aged_snapshot() -> anyhow::Result<()> {
         // one snapshot, but it was 50 days ago
-        let (server, client_id, versions) = av_setup(1, Some(0), Some(50))?;
+        let (storage, client_id) = setup();
+        let versions = add_versions(&storage, client_id, 1, Some(0), Some(50)).await?;
 
-        let result = server.add_version(client_id, versions[0], vec![1, 2, 3])?;
+        let server = into_server(storage);
+        let result = server
+            .add_version(client_id, versions[0], vec![1, 2, 3])
+            .await?;
 
         av_success_check(
             &server,
@@ -609,18 +673,24 @@ mod test {
             vec![1, 2, 3],
             // urgency=high due to days since the snapshot
             SnapshotUrgency::High,
-        )?;
+        )
+        .await?;
 
         Ok(())
     }
 
-    #[test]
-    fn add_version_success_snapshot_many_versions_ago() -> anyhow::Result<()> {
+    #[tokio::test]
+    async fn add_version_success_snapshot_many_versions_ago() -> anyhow::Result<()> {
         // one snapshot, but it was 50 versions ago
-        let (mut server, client_id, versions) = av_setup(50, Some(0), None)?;
+        let (storage, client_id) = setup();
+        let versions = add_versions(&storage, client_id, 50, Some(0), None).await?;
+
+        let mut server = into_server(storage);
         server.config.snapshot_versions = 30;
 
-        let result = server.add_version(client_id, versions[49], vec![1, 2, 3])?;
+        let result = server
+            .add_version(client_id, versions[49], vec![1, 2, 3])
+            .await?;
 
         av_success_check(
             &server,
@@ -630,136 +700,165 @@ mod test {
             vec![1, 2, 3],
             // urgency=high due to number of versions since the snapshot
             SnapshotUrgency::High,
-        )?;
+        )
+        .await?;
 
         Ok(())
     }
 
-    #[test]
-    fn add_snapshot_success_latest() -> anyhow::Result<()> {
-        let (server, (client_id, version_id)) = setup(|txn, client_id| {
-            let version_id = Uuid::new_v4();
+    #[tokio::test]
+    async fn add_snapshot_success_latest() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        let version_id = Uuid::new_v4();
 
+        {
+            let mut txn = storage.txn(client_id).await?;
             // set up a task DB with one version in it
-            txn.new_client(version_id)?;
-            txn.add_version(version_id, NIL_VERSION_ID, vec![])?;
+            txn.new_client(version_id).await?;
+            txn.add_version(version_id, NIL_VERSION_ID, vec![]).await?;
 
-            // add a snapshot for that version
-            Ok((client_id, version_id))
-        })?;
-        server.add_snapshot(client_id, version_id, vec![1, 2, 3])?;
+            txn.commit().await?;
+        }
+
+        let server = into_server(storage);
+        server
+            .add_snapshot(client_id, version_id, vec![1, 2, 3])
+            .await?;
 
         // verify the snapshot
-        let mut txn = server.txn(client_id)?;
-        let client = txn.get_client()?.unwrap();
+        let mut txn = server.txn(client_id).await?;
+        let client = txn.get_client().await?.unwrap();
         let snapshot = client.snapshot.unwrap();
         assert_eq!(snapshot.version_id, version_id);
         assert_eq!(snapshot.versions_since, 0);
         assert_eq!(
-            txn.get_snapshot_data(version_id).unwrap(),
+            txn.get_snapshot_data(version_id).await.unwrap(),
             Some(vec![1, 2, 3])
         );
 
         Ok(())
     }
 
-    #[test]
-    fn add_snapshot_success_older() -> anyhow::Result<()> {
-        let (server, (client_id, version_id_1)) = setup(|txn, client_id| {
-            let version_id_1 = Uuid::new_v4();
-            let version_id_2 = Uuid::new_v4();
+    #[tokio::test]
+    async fn add_snapshot_success_older() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        let version_id_1 = Uuid::new_v4();
+        let version_id_2 = Uuid::new_v4();
 
+        {
+            let mut txn = storage.txn(client_id).await?;
             // set up a task DB with two versions in it
-            txn.new_client(version_id_2)?;
-            txn.add_version(version_id_1, NIL_VERSION_ID, vec![])?;
-            txn.add_version(version_id_2, version_id_1, vec![])?;
+            txn.new_client(version_id_2).await?;
+            txn.add_version(version_id_1, NIL_VERSION_ID, vec![])
+                .await?;
+            txn.add_version(version_id_2, version_id_1, vec![]).await?;
 
-            Ok((client_id, version_id_1))
-        })?;
+            txn.commit().await?;
+        }
+
         // add a snapshot for version 1
-        server.add_snapshot(client_id, version_id_1, vec![1, 2, 3])?;
+        let server = into_server(storage);
+        server
+            .add_snapshot(client_id, version_id_1, vec![1, 2, 3])
+            .await?;
 
         // verify the snapshot
-        let mut txn = server.txn(client_id)?;
-        let client = txn.get_client()?.unwrap();
+        let mut txn = server.txn(client_id).await?;
+        let client = txn.get_client().await?.unwrap();
         let snapshot = client.snapshot.unwrap();
         assert_eq!(snapshot.version_id, version_id_1);
         assert_eq!(snapshot.versions_since, 0);
         assert_eq!(
-            txn.get_snapshot_data(version_id_1).unwrap(),
+            txn.get_snapshot_data(version_id_1).await.unwrap(),
             Some(vec![1, 2, 3])
         );
 
         Ok(())
     }
 
-    #[test]
-    fn add_snapshot_fails_no_such() -> anyhow::Result<()> {
-        let (server, client_id) = setup(|txn, client_id| {
-            let version_id_1 = Uuid::new_v4();
-            let version_id_2 = Uuid::new_v4();
+    #[tokio::test]
+    async fn add_snapshot_fails_no_such() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        let version_id_1 = Uuid::new_v4();
+        let version_id_2 = Uuid::new_v4();
 
+        {
+            let mut txn = storage.txn(client_id).await?;
             // set up a task DB with two versions in it
-            txn.new_client(version_id_2)?;
-            txn.add_version(version_id_1, NIL_VERSION_ID, vec![])?;
-            txn.add_version(version_id_2, version_id_1, vec![])?;
+            txn.new_client(version_id_2).await?;
+            txn.add_version(version_id_1, NIL_VERSION_ID, vec![])
+                .await?;
+            txn.add_version(version_id_2, version_id_1, vec![]).await?;
 
-            // add a snapshot for unknown version
-            Ok(client_id)
-        })?;
+            txn.commit().await?;
+        }
 
+        // add a snapshot for unknown version
+        let server = into_server(storage);
         let version_id_unk = Uuid::new_v4();
-        server.add_snapshot(client_id, version_id_unk, vec![1, 2, 3])?;
+        server
+            .add_snapshot(client_id, version_id_unk, vec![1, 2, 3])
+            .await?;
 
         // verify the snapshot does not exist
-        let mut txn = server.txn(client_id)?;
-        let client = txn.get_client()?.unwrap();
+        let mut txn = server.txn(client_id).await?;
+        let client = txn.get_client().await?.unwrap();
         assert!(client.snapshot.is_none());
 
         Ok(())
     }
 
-    #[test]
-    fn add_snapshot_fails_too_old() -> anyhow::Result<()> {
-        let (server, (client_id, version_ids)) = setup(|txn, client_id| {
-            let mut version_id = Uuid::new_v4();
-            let mut parent_version_id = Uuid::nil();
-            let mut version_ids = vec![];
+    #[tokio::test]
+    async fn add_snapshot_fails_too_old() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        let mut version_id = Uuid::new_v4();
+        let mut parent_version_id = Uuid::nil();
+        let mut version_ids = vec![];
 
+        {
+            let mut txn = storage.txn(client_id).await?;
             // set up a task DB with 10 versions in it (oldest to newest)
-            txn.new_client(Uuid::nil())?;
+            txn.new_client(Uuid::nil()).await?;
             for _ in 0..10 {
-                txn.add_version(version_id, parent_version_id, vec![])?;
+                txn.add_version(version_id, parent_version_id, vec![])
+                    .await?;
                 version_ids.push(version_id);
                 parent_version_id = version_id;
                 version_id = Uuid::new_v4();
             }
 
-            // add a snapshot for the earliest of those
-            Ok((client_id, version_ids))
-        })?;
-        server.add_snapshot(client_id, version_ids[0], vec![1, 2, 3])?;
+            txn.commit().await?;
+        }
+
+        // add a snapshot for the earliest of those
+        let server = into_server(storage);
+        server
+            .add_snapshot(client_id, version_ids[0], vec![1, 2, 3])
+            .await?;
 
         // verify the snapshot does not exist
-        let mut txn = server.txn(client_id)?;
-        let client = txn.get_client()?.unwrap();
+        let mut txn = server.txn(client_id).await?;
+        let client = txn.get_client().await?.unwrap();
         assert!(client.snapshot.is_none());
 
         Ok(())
     }
 
-    #[test]
-    fn add_snapshot_fails_newer_exists() -> anyhow::Result<()> {
-        let (server, (client_id, version_ids)) = setup(|txn, client_id| {
-            let mut version_id = Uuid::new_v4();
-            let mut parent_version_id = Uuid::nil();
-            let mut version_ids = vec![];
+    #[tokio::test]
+    async fn add_snapshot_fails_newer_exists() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        let mut version_id = Uuid::new_v4();
+        let mut parent_version_id = Uuid::nil();
+        let mut version_ids = vec![];
 
+        {
+            let mut txn = storage.txn(client_id).await?;
             // set up a task DB with 5 versions in it (oldest to newest) and a snapshot of the
             // middle one
-            txn.new_client(Uuid::nil())?;
+            txn.new_client(Uuid::nil()).await?;
             for _ in 0..5 {
-                txn.add_version(version_id, parent_version_id, vec![])?;
+                txn.add_version(version_id, parent_version_id, vec![])
+                    .await?;
                 version_ids.push(version_id);
                 parent_version_id = version_id;
                 version_id = Uuid::new_v4();
@@ -771,55 +870,64 @@ mod test {
                     timestamp: Utc.with_ymd_and_hms(2001, 9, 9, 1, 46, 40).unwrap(),
                 },
                 vec![1, 2, 3],
-            )?;
+            )
+            .await?;
 
-            // add a snapshot for the earliest of those
-            Ok((client_id, version_ids))
-        })?;
+            txn.commit().await?;
+        }
 
-        server.add_snapshot(client_id, version_ids[0], vec![9, 9, 9])?;
+        // add a snapshot for the earliest of those
+        let server = into_server(storage);
+        server
+            .add_snapshot(client_id, version_ids[0], vec![9, 9, 9])
+            .await?;
 
         // verify the snapshot was not replaced
-        let mut txn = server.txn(client_id)?;
-        let client = txn.get_client()?.unwrap();
+        let mut txn = server.txn(client_id).await?;
+        let client = txn.get_client().await?.unwrap();
         let snapshot = client.snapshot.unwrap();
         assert_eq!(snapshot.version_id, version_ids[2]);
         assert_eq!(snapshot.versions_since, 2);
         assert_eq!(
-            txn.get_snapshot_data(version_ids[2]).unwrap(),
+            txn.get_snapshot_data(version_ids[2]).await.unwrap(),
             Some(vec![1, 2, 3])
         );
 
         Ok(())
     }
 
-    #[test]
-    fn add_snapshot_fails_nil_version() -> anyhow::Result<()> {
-        let (server, client_id) = setup(|txn, client_id| {
+    #[tokio::test]
+    async fn add_snapshot_fails_nil_version() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        {
+            let mut txn = storage.txn(client_id).await?;
             // just set up the client
-            txn.new_client(NIL_VERSION_ID)?;
+            txn.new_client(NIL_VERSION_ID).await?;
+            txn.commit().await?;
+        }
 
-            // add a snapshot for the nil version
-            Ok(client_id)
-        })?;
-
-        server.add_snapshot(client_id, NIL_VERSION_ID, vec![9, 9, 9])?;
+        let server = into_server(storage);
+        server
+            .add_snapshot(client_id, NIL_VERSION_ID, vec![9, 9, 9])
+            .await?;
 
         // verify the snapshot does not exist
-        let mut txn = server.txn(client_id)?;
-        let client = txn.get_client()?.unwrap();
+        let mut txn = server.txn(client_id).await?;
+        let client = txn.get_client().await?.unwrap();
         assert!(client.snapshot.is_none());
 
         Ok(())
     }
 
-    #[test]
-    fn get_snapshot_found() -> anyhow::Result<()> {
-        let (server, (client_id, data, snapshot_version_id)) = setup(|txn, client_id| {
-            let data = vec![1, 2, 3];
-            let snapshot_version_id = Uuid::new_v4();
+    #[tokio::test]
+    async fn get_snapshot_found() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        let data = vec![1, 2, 3];
+        let snapshot_version_id = Uuid::new_v4();
 
-            txn.new_client(snapshot_version_id)?;
+        {
+            let mut txn = storage.txn(client_id).await?;
+            txn.new_client(snapshot_version_id).await?;
             txn.set_snapshot(
                 Snapshot {
                     version_id: snapshot_version_id,
@@ -827,25 +935,31 @@ mod test {
                     timestamp: Utc.with_ymd_and_hms(2001, 9, 9, 1, 46, 40).unwrap(),
                 },
                 data.clone(),
-            )?;
-            Ok((client_id, data, snapshot_version_id))
-        })?;
+            )
+            .await?;
+            txn.commit().await?;
+        }
+
+        let server = into_server(storage);
         assert_eq!(
-            server.get_snapshot(client_id)?,
+            server.get_snapshot(client_id).await?,
             Some((snapshot_version_id, data))
         );
 
         Ok(())
     }
 
-    #[test]
-    fn get_snapshot_not_found() -> anyhow::Result<()> {
-        let (server, client_id) = setup(|txn, client_id| {
-            txn.new_client(NIL_VERSION_ID)?;
-            Ok(client_id)
-        })?;
+    #[tokio::test]
+    async fn get_snapshot_not_found() -> anyhow::Result<()> {
+        let (storage, client_id) = setup();
+        {
+            let mut txn = storage.txn(client_id).await?;
+            txn.new_client(NIL_VERSION_ID).await?;
+            txn.commit().await?;
+        }
 
-        assert_eq!(server.get_snapshot(client_id)?, None);
+        let server = into_server(storage);
+        assert_eq!(server.get_snapshot(client_id).await?, None);
 
         Ok(())
     }
