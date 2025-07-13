@@ -321,7 +321,10 @@ mod test {
 
         let mut version_id = Uuid::nil();
         txn.new_client(Uuid::nil()).await?;
-        debug_assert!(num_versions < u8::MAX.into());
+        assert!(
+            num_versions < u8::MAX.into(),
+            "we cast the version number to u8"
+        );
         for vnum in 0..num_versions {
             let parent_version_id = version_id;
             version_id = Uuid::new_v4();
@@ -349,22 +352,6 @@ mod test {
         txn.commit().await?;
         Ok(versions)
     }
-
-    /*
-    /// Utility setup function for add_version tests
-    async fn av_setup(
-        num_versions: u32,
-        snapshot_version: Option<u32>,
-        snapshot_days_ago: Option<i64>,
-    ) -> anyhow::Result<(Server, Uuid, Vec<Uuid>)> {
-        let (server, (client_id, versions)) = setup(async |txn, client_id| {
-
-            Ok((client_id, versions))
-        })
-        .await?;
-        Ok((server, client_id, versions))
-    }
-    */
 
     /// Utility function to check the results of an add_version call
     async fn av_success_check(
