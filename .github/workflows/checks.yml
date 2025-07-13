@@ -107,3 +107,19 @@ jobs:
         with:
           # exclude the binary package from semver checks, since it is not published as a crate.
           exclude: taskchampion-sync-server
+
+  mdbook:
+    runs-on: ubuntu-latest
+    name: "mdBook Documentation"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          # if this changes, change it in .github/workflows/publish-docs.yml as well
+          mdbook-version: '0.4.48'
+
+      - run: mdbook test docs
+      - run: mdbook build docs
