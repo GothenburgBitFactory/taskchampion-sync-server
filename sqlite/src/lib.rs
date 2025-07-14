@@ -4,7 +4,7 @@
 //!
 //! This crate is intended for small deployments of a sync server, supporting one or a small number
 //! of users. The schema for the database is considered an implementation detail. For more robust
-//! database support, consider `taskchmpaion-sync-server-storage-posrgres`.
+//! database support, consider `taskchampion-sync-server-storage-postgres`.
 
 use anyhow::Context;
 use chrono::{TimeZone, Utc};
@@ -276,7 +276,7 @@ impl StorageTxn for Txn {
              SET
                latest_version_id = ?,
                versions_since_snapshot = versions_since_snapshot + 1
-             WHERE client_id = ? and latest_Version_id = ?",
+             WHERE client_id = ? and latest_version_id = ?",
                 params![
                     StoredUuid(version_id),
                     StoredUuid(self.client_id),
