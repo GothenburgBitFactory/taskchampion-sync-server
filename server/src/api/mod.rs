@@ -1,7 +1,7 @@
 use actix_web::{error, web, HttpRequest, Result, Scope};
 use taskchampion_sync_server_core::{ClientId, Server, ServerError};
 
-use crate::WebConfig;
+use crate::web::WebConfig;
 
 mod add_snapshot;
 mod add_version;
@@ -89,6 +89,7 @@ mod test {
             web_config: WebConfig {
                 client_id_allowlist: None,
                 create_clients: true,
+                ..WebConfig::default()
             },
         };
         let req = actix_web::test::TestRequest::default()
@@ -106,6 +107,7 @@ mod test {
             web_config: WebConfig {
                 client_id_allowlist: Some([client_id_ok].into()),
                 create_clients: true,
+                ..WebConfig::default()
             },
         };
         let req = actix_web::test::TestRequest::default()

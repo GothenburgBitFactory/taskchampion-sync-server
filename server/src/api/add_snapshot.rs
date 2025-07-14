@@ -56,8 +56,10 @@ pub(crate) async fn service(
 
 #[cfg(test)]
 mod test {
-    use crate::WebServer;
-    use crate::{api::CLIENT_ID_HEADER, WebConfig};
+    use crate::{
+        api::CLIENT_ID_HEADER,
+        web::{WebConfig, WebServer},
+    };
     use actix_web::{http::StatusCode, test, App};
     use pretty_assertions::assert_eq;
     use taskchampion_sync_server_core::{InMemoryStorage, ServerConfig, Storage, NIL_VERSION_ID};
