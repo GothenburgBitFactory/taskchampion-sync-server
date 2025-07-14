@@ -17,7 +17,7 @@ for more on how to use this project.
 
 ## Repository Guide
 
-The repository is comprised of three crates:
+The repository is comprised of four crates:
 
  - `taskchampion-sync-server-core` implements the core of the protocol
  - `taskchampion-sync-server-storage-sqlite` implements an SQLite backend for the core
@@ -60,16 +60,34 @@ cargo build --release
 After build the binary is located in
 `target/release/taskchampion-sync-server`.
 
-### Building the Container
+#### Building the Postgres backend
 
-To build the container, execute the following commands.
+The storage backend is controlled by Cargo features `postres` and `sqlite`.
+By default, only the `sqlite` feature is enabled.
+To enable building the Postgres backend, add `--features postgres`.
+The Postgres binary is located in
+`target/release/taskchampion-sync-server-postgres`.
 
+### Building the Docker Images
+
+To build the images, execute the following commands.
+
+SQLite:
 ```sh
 source .env
 docker build \
   --build-arg RUST_VERSION=${RUST_VERSION} \
   --build-arg ALPINE_VERSION=${ALPINE_VERSION} \
-  -t taskchampion-sync-server .
+  -t taskchampion-sync-server docker/sqlite
+```
+
+Postgres:
+```sh
+source .env
+docker build \
+  --build-arg RUST_VERSION=${RUST_VERSION} \
+  --build-arg ALPINE_VERSION=${ALPINE_VERSION} \
+  -t taskchampion-sync-server-postgres docker/postgres
 ```
 
 Now to run it, simply exec.

@@ -5,9 +5,25 @@ authors = ["Dustin J. Mitchell <dustin@mozilla.com>"]
 edition = "2021"
 publish = false
 
+[features]
+# By default, only build the SQLite backend.
+default = ["sqlite"]
+sqlite = ["dep:taskchampion-sync-server-storage-sqlite"]
+postgres = ["dep:taskchampion-sync-server-storage-postgres"]
+
+[[bin]]
+# The simple binary name is the SQLite build.
+name = "taskchampion-sync-server"
+required-features = ["sqlite"]
+
+[[bin]]
+name = "taskchampion-sync-server-postgres"
+required-features = ["postgres"]
+
 [dependencies]
 taskchampion-sync-server-core = { path = "../core" }
-taskchampion-sync-server-storage-sqlite = { path = "../sqlite" }
+taskchampion-sync-server-storage-sqlite = { path = "../sqlite", optional = true }
+taskchampion-sync-server-storage-postgres = { path = "../postgres", optional = true }
 uuid.workspace = true
 actix-web.workspace = true
 anyhow.workspace = true
