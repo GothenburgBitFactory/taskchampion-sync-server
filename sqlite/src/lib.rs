@@ -1,4 +1,11 @@
-//! Tihs crate implements a SQLite storage backend for the TaskChampion sync server.
+//! This crate implements a SQLite storage backend for the TaskChampion sync server.
+//!
+//! Use the [`SqliteStorage`] type as an implementation of the [`Storage`] trait.
+//!
+//! This crate is intended for small deployments of a sync server, supporting one or a small number
+//! of users. The schema for the database is considered an implementation detail. For more robust
+//! database support, consider `taskchampion-sync-server-storage-postgres`.
+
 use anyhow::Context;
 use chrono::{TimeZone, Utc};
 use rusqlite::types::{FromSql, ToSql};
@@ -43,7 +50,7 @@ impl SqliteStorage {
     /// Create a new instance using a database at the given directory.
     ///
     /// The database will be stored in a file named `taskchampion-sync-server.sqlite3` in the given
-    /// directory.
+    /// directory. The database will be created if it does not exist.
     pub fn new<P: AsRef<Path>>(directory: P) -> anyhow::Result<SqliteStorage> {
         std::fs::create_dir_all(&directory)
             .with_context(|| format!("Failed to create `{}`.", directory.as_ref().display()))?;
@@ -176,7 +183,7 @@ impl StorageTxn for Txn {
     async fn new_client(&mut self, latest_version_id: Uuid) -> anyhow::Result<()> {
         self.con
             .execute(
-                "INSERT OR REPLACE INTO clients (client_id, latest_version_id) VALUES (?, ?)",
+                "INSERT INTO clients (client_id, latest_version_id) VALUES (?, ?)",
                 params![&StoredUuid(self.client_id), &StoredUuid(latest_version_id)],
             )
             .context("Error creating/updating client")?;
@@ -231,7 +238,6 @@ impl StorageTxn for Txn {
 
     async fn get_version_by_parent(
         &mut self,
-
         parent_version_id: Uuid,
     ) -> anyhow::Result<Option<Version>> {
         self.get_version_impl(
@@ -249,7 +255,6 @@ impl StorageTxn for Txn {
 
     async fn add_version(
         &mut self,
-
         version_id: Uuid,
         parent_version_id: Uuid,
         history_segment: Vec<u8>,
@@ -264,16 +269,25 @@ impl StorageTxn for Txn {
             ]
         )
         .context("Error adding version")?;
-        self.con
+        let rows_changed = self
+            .con
             .execute(
                 "UPDATE clients
              SET
                latest_version_id = ?,
                versions_since_snapshot = versions_since_snapshot + 1
-             WHERE client_id = ?",
-                params![StoredUuid(version_id), StoredUuid(self.client_id),],
+             WHERE client_id = ? and latest_version_id = ?",
+                params![
+                    StoredUuid(version_id),
+                    StoredUuid(self.client_id),
+                    StoredUuid(parent_version_id)
+                ],
             )
             .context("Error updating client for new version")?;
+
+        if rows_changed == 0 {
+            anyhow::bail!("clients.latest_version_id does not match parent_version_id");
+        }
 
         Ok(())
     }
@@ -328,12 +342,12 @@ mod test {
         assert_eq!(client.latest_version_id, latest_version_id);
         assert!(client.snapshot.is_none());
 
-        let latest_version_id = Uuid::new_v4();
-        txn.add_version(latest_version_id, Uuid::new_v4(), vec![1, 1])
+        let new_version_id = Uuid::new_v4();
+        txn.add_version(new_version_id, latest_version_id, vec![1, 1])
             .await?;
 
         let client = txn.get_client().await?.unwrap();
-        assert_eq!(client.latest_version_id, latest_version_id);
+        assert_eq!(client.latest_version_id, new_version_id);
         assert!(client.snapshot.is_none());
 
         let snap = Snapshot {
@@ -344,7 +358,7 @@ mod test {
         txn.set_snapshot(snap.clone(), vec![1, 2, 3]).await?;
 
         let client = txn.get_client().await?.unwrap();
-        assert_eq!(client.latest_version_id, latest_version_id);
+        assert_eq!(client.latest_version_id, new_version_id);
         assert_eq!(client.snapshot.unwrap(), snap);
 
         Ok(())
@@ -368,8 +382,10 @@ mod test {
         let client_id = Uuid::new_v4();
         let mut txn = storage.txn(client_id).await?;
 
-        let version_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
+        txn.new_client(parent_version_id).await?;
+
+        let version_id = Uuid::new_v4();
         let history_segment = b"abc".to_vec();
         txn.add_version(version_id, parent_version_id, history_segment.clone())
             .await?;
@@ -396,11 +412,35 @@ mod test {
         let client_id = Uuid::new_v4();
         let mut txn = storage.txn(client_id).await?;
 
-        let version_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
+        txn.new_client(parent_version_id).await?;
+
+        let version_id = Uuid::new_v4();
         let history_segment = b"abc".to_vec();
         txn.add_version(version_id, parent_version_id, history_segment.clone())
             .await?;
+        // Fails because the version already exists.
+        assert!(txn
+            .add_version(version_id, parent_version_id, history_segment.clone())
+            .await
+            .is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_add_version_mismatch() -> anyhow::Result<()> {
+        let tmp_dir = TempDir::new()?;
+        let storage = SqliteStorage::new(tmp_dir.path())?;
+        let client_id = Uuid::new_v4();
+        let mut txn = storage.txn(client_id).await?;
+
+        let latest_version_id = Uuid::new_v4();
+        txn.new_client(latest_version_id).await?;
+
+        let version_id = Uuid::new_v4();
+        let parent_version_id = Uuid::new_v4(); // != latest_version_id
+        let history_segment = b"abc".to_vec();
+        // Fails because the latest_version_id is not parent_version_id.
         assert!(txn
             .add_version(version_id, parent_version_id, history_segment.clone())
             .await

@@ -37,7 +37,9 @@ pub struct Version {
 ///
 /// Transactions must be sequentially consistent. That is, the results of transactions performed
 /// in storage must be as if each were executed sequentially in some order. In particular,
-/// un-committed changes must not be read by another transaction.
+/// un-committed changes must not be read by another transaction, but committed changes must
+/// be visible to subequent transations. Together, this guarantees that `add_version` reliably
+/// constructs a linear sequence of versions.
 ///
 /// Transactions with different client IDs cannot share any data, so it is safe to handle them
 /// concurrently.
@@ -70,8 +72,10 @@ pub trait StorageTxn {
     async fn get_version(&mut self, version_id: Uuid) -> anyhow::Result<Option<Version>>;
 
     /// Add a version (that must not already exist), and
-    ///  - update latest_version_id
+    ///  - update latest_version_id from parent_version_id to version_id
     ///  - increment snapshot.versions_since
+    /// Fails if the existing `latest_version_id` is not equal to `parent_version_id`. Check
+    /// this by calling `get_client` earlier in the same transaction.
     async fn add_version(
         &mut self,
         version_id: Uuid,
