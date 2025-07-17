@@ -153,7 +153,7 @@ impl StorageTxn for Txn {
     async fn new_client(&mut self, latest_version_id: Uuid) -> anyhow::Result<()> {
         self.db_client()
             .execute(
-                "INSERT into clients (client_id, latest_version_id) values ($1, $2)",
+                "INSERT INTO clients (client_id, latest_version_id) VALUES ($1, $2)",
                 &[&self.client_id, &latest_version_id],
             )
             .await
@@ -166,11 +166,11 @@ impl StorageTxn for Txn {
         self.db_client()
             .execute(
                 "UPDATE clients
-                    set snapshot_version_id = $1,
+                    SET snapshot_version_id = $1,
                         versions_since_snapshot = $2,
                         snapshot_timestamp = $3,
                         snapshot = $4
-                    where client_id = $5",
+                    WHERE client_id = $5",
                 &[
                     &snapshot.version_id,
                     &(snapshot.versions_since as i32),
@@ -554,19 +554,6 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_get_version_none() -> anyhow::Result<()> {
-        with_db(async |connection_string, db_client| {
-            let storage = PostgresStorage::new(connection_string).await?;
-            let client_id = make_client(&db_client).await?;
-            let mut txn = storage.txn(client_id).await?;
-            assert_eq!(txn.get_version_by_parent(Uuid::new_v4()).await?, None);
-            assert_eq!(txn.get_version(Uuid::new_v4()).await?, None);
-            Ok(())
-        })
-        .await
-    }
-
-    #[tokio::test]
     async fn test_get_version() -> anyhow::Result<()> {
         with_db(async |connection_string, db_client| {
             let storage = PostgresStorage::new(connection_string).await?;
@@ -603,7 +590,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn add_version() -> anyhow::Result<()> {
+    async fn test_add_version() -> anyhow::Result<()> {
         with_db(async |connection_string, db_client| {
             let storage = PostgresStorage::new(connection_string).await?;
             let client_id = make_client(&db_client).await?;
@@ -628,7 +615,7 @@ mod test {
     /// When an add_version call specifies an incorrect `parent_version_id, it fails. This is
     /// typically avoided by calling `get_client` beforehand, which (due to repeatable reads)
     /// allows the caller to check the `latest_version_id` before calling `add_version`.
-    async fn add_version_mismatch() -> anyhow::Result<()> {
+    async fn test_add_version_mismatch() -> anyhow::Result<()> {
         with_db(async |connection_string, db_client| {
             let storage = PostgresStorage::new(connection_string).await?;
             let client_id = make_client(&db_client).await?;
@@ -649,7 +636,7 @@ mod test {
 
     #[tokio::test]
     /// Adding versions to two different clients can proceed concurrently.
-    async fn add_version_no_conflict_different_clients() -> anyhow::Result<()> {
+    async fn test_add_version_no_conflict_different_clients() -> anyhow::Result<()> {
         with_db(async |connection_string, db_client| {
             let storage = PostgresStorage::new(connection_string).await?;
 

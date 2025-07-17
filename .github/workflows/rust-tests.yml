@@ -59,4 +59,6 @@ jobs:
           override: true
 
       - name: test
-        run: TEST_DB_URL=postgresql://test_user:test_password@localhost:5432/test_db cargo test
+        env:
+          TEST_DB_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: cargo test
