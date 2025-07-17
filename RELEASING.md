@@ -22,7 +22,11 @@
 
 ---
 
-For the next release, include the folowing in the release notes:
+For the next release,
+
+- remove postgres from the exclusion list in `.github/workflows/checks.yml` after the release
+
+- include the folowing in the release notes:
 
 Running the Docker image for this server without specifying DATA_DIR
 defaulted to storing the server data in
