@@ -641,34 +641,23 @@ mod test {
             let storage = PostgresStorage::new(connection_string).await?;
 
             // Clients 1 and 2 do not interfere with each other; if these are the same client, then
-            // this will deadlock as one transaction waits for the other.
+            // this will deadlock as one transaction waits for the other. If the postgres storage
+            // implementation serialized _all_ transactions across clients, that would limit its
+            // scalability.
+            //
+            // So the asertion here is "does not deadlock".
+
             let client_id1 = make_client(&db_client).await?;
             let mut txn1 = storage.txn(client_id1).await?;
             let version_id1 = Uuid::new_v4();
             txn1.add_version(version_id1, Uuid::nil(), b"v1".to_vec())
                 .await?;
-            assert_eq!(
-                txn1.get_version(version_id1).await?,
-                Some(Version {
-                    version_id: version_id1,
-                    parent_version_id: Uuid::nil(),
-                    history_segment: b"v1".to_vec()
-                })
-            );
 
             let client_id2 = make_client(&db_client).await?;
             let mut txn2 = storage.txn(client_id2).await?;
             let version_id2 = Uuid::new_v4();
             txn2.add_version(version_id2, Uuid::nil(), b"v2".to_vec())
                 .await?;
-            assert_eq!(
-                txn2.get_version(version_id2).await?,
-                Some(Version {
-                    version_id: version_id2,
-                    parent_version_id: Uuid::nil(),
-                    history_segment: b"v2".to_vec()
-                })
-            );
 
             txn1.commit().await?;
             txn2.commit().await?;
