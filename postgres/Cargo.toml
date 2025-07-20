@@ -21,8 +21,9 @@ thiserror.workspace = true
 tokio-postgres.workspace = true
 tokio.workspace = true
 uuid.workspace = true
-native-tls = { version = "0.2.14", features = ["vendored"] }
-postgres-native-tls = "0.5.1"
+openssl.workspace = true
+native-tls.workspace = true
+postgres-native-tls.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

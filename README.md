@@ -60,7 +60,7 @@ cargo build --release
 After build the binary is located in
 `target/release/taskchampion-sync-server`.
 
-#### Building the Postgres backend
+#### Building the Postgres Backend
 
 The storage backend is controlled by Cargo features `postres` and `sqlite`.
 By default, only the `sqlite` feature is enabled.
