@@ -1863,6 +1863,7 @@ dependencies = [
  "serde",
  "serde_json",
  "taskchampion-sync-server-core",
+ "taskchampion-sync-server-storage-postgres",
  "taskchampion-sync-server-storage-sqlite",
  "temp-env",
  "tempfile",

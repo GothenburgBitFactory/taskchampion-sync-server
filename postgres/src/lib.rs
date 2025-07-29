@@ -21,7 +21,7 @@
 //! An external application may:
 //!  - Add additional tables to the database
 //!  - Add additional columns to the `clients` table. If those columns do not have default
-//!    values, calls to [`Txn::new_client`] will fail. It is possible to configure
+//!    values, calls to `Txn::new_client` will fail. It is possible to configure
 //!    `taskchampion-sync-server` to never call this method.
 //!  - Insert rows into the `clients` table, using default values for all columns except
 //!    `client_id` and application-specific columns.
