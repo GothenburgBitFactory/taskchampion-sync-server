@@ -23,10 +23,23 @@ URI](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
 - `LISTEN` (default `0.0.0.0:8080`) - address and port on which to listen for
 HTTP requests.
 - `CLIENT_ID` - comma-separated list of client IDs that will be allowed, or
-empty to allow all clients>
+empty to allow all clients.
 - `CREATE_CLIENTS` (default `true`) - if true, automatically create clients on
 first sync. If this is set to false, it is up to you to initialize clients in
 the DB.
+
+### Example
+
+```shell
+docker run -d \
+  --name=taskchampion-sync-server \
+  -p 8080:8080 \
+  -e RUST_LOG=debug \
+  -v /data/taskchampion-sync-server:/var/lib/taskchampion-sync-server/data \
+  taskchampion-sync-server
+```
+
+### Image-Specific Setup
 
 The SQLite image is configured with `VOLUME
 /var/lib/taskchampion-sync-server/data`, persisting the task data in an

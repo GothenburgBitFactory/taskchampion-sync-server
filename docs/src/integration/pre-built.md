@@ -22,8 +22,9 @@ default values, ensure the server is configured with `CREATE_CLIENTS=false` as
 described below.
 - Insert rows into the `clients` table, using default values for all columns
 except `client_id` and any application-specific columns.
-- Delete rows from the `clients` table, noting that associated task data is
-also deleted.
+- Delete rows from the `clients` table. Note that this table is configured to
+automatically delete all data associated with a client when the client's row is
+deleted.
 
 ## Managing Clients
 

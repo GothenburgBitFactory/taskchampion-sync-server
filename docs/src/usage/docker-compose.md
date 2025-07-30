@@ -38,5 +38,6 @@ sync.encryption_secret=your-encryption-secret
 The docker-compose images store data in a docker volume named
 `taskchampion-sync-server_data`. This volume contains all of the task data, as
 well as the TLS certificate information. It will persist over restarts, in a
-typical Docker installation. The docker containers will start automatically on
-system startup. See the docker-compose documentation for more information.
+typical Docker installation. The docker containers will start automatically
+when the Docker dameon starts. See the docker-compose documentation for more
+information.

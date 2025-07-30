@@ -39,14 +39,9 @@ jobs:
           push: true
           tags: ${{ steps.meta-sqlite.outputs.tags }}
           labels: ${{ steps.meta-sqlite.outputs.labels }}
-          build-args: |
-            ALPINE_VERSION=${{ env.ALPINE_VERSION }}
-            RUST_VERSION=${{ env.RUST_VERSION }}
   postgres:
     runs-on: ubuntu-latest
     steps:
-      - name: Load .env file
-        uses: xom9ikk/dotenv@v2
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Login to ghcr.io
@@ -75,6 +70,3 @@ jobs:
           push: true
           tags: ${{ steps.meta-postgres.outputs.tags }}
           labels: ${{ steps.meta-postgres.outputs.labels }}
-          build-args: |
-            ALPINE_VERSION=${{ env.ALPINE_VERSION }}
-            RUST_VERSION=${{ env.RUST_VERSION }}

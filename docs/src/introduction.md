@@ -11,13 +11,13 @@ sophisticated applications ([integration](./integration.md)).
 It also serves as a reference implementation: where the
 [specification][sync-protocol] is ambiguous, this implementation's
 interpretation is favored in resolving the ambiguity. Other implementations of
-protocol should interoperate with this implementation.
+the protocol should interoperate with this implementation.
 
 ## Sync Overview
 
-The server identifies each task database with a client ID. For example, when
+The server identifies each user with a client ID. For example, when
 syncing Taskwarrior tasks between a desktop computer and a laptop, both systems
-would use the same client ID to indicate that they share the same task data.
+would use the same client ID to indicate that they share the same user's task data.
 
 Task data is encrypted, and the server does not have access to the encryption
 secret. The server sees only encrypted data and cannot read or modify tasks in
