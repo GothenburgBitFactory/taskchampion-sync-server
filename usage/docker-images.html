@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Integration - TaskChampion Sync Server</title>
+        <title>Docker Images - TaskChampion Sync Server</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon.svg">
-        <link rel="shortcut icon" href="favicon.png">
-        <link rel="stylesheet" href="css/variables.css">
-        <link rel="stylesheet" href="css/general.css">
-        <link rel="stylesheet" href="css/chrome.css">
-        <link rel="stylesheet" href="css/print.css" media="print">
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="fonts/fonts.css">
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="highlight-css" href="highlight.css">
-        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
-        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+        <link rel="stylesheet" id="highlight-css" href="../highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="../tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "ayu";
             const default_dark_theme = "navy";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc.js"></script>
+        <script src="../toc.js"></script>
     </head>
     <body>
     <div id="body-container">
@@ -91,7 +91,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -126,7 +126,7 @@
                     <h1 class="menu-title">TaskChampion Sync Server</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
 
@@ -155,36 +155,64 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="integration"><a class="header" href="#integration">Integration</a></h1>
-<p>Taskchampion-sync-server can be integrated into larger applications, such as
-web-based hosting services.</p>
+                        <h1 id="docker-images"><a class="header" href="#docker-images">Docker Images</a></h1>
+<p>Every release of the server generates Docker images. One image is produced for
+each storage backend:</p>
 <ul>
-<li>
-<p>Most deployments can simply use the pre-built Docker images to implement the
-sync protocol, handling other aspects of the application in separate
-containers. See <a href="./integration/pre-built.html">Pre-built Images</a>.</p>
-</li>
-<li>
-<p>More complex deployments may wish to modify or extend the operation of the
-server. These can use the Rust crates to build precisely the desired
-functionality. See <a href="./integration/crates.html">Rust Crates</a>.</p>
-</li>
-<li>
-<p>If desired, an integration may completely re-implement the <a href="https://gothenburgbitfactory.org/taskchampion/sync.html">sync
-protocol</a>. See <a href="./integration/protocol-impl.html">Sync
-Protocol Implementation</a>.</p>
-</li>
+<li><code>ghcr.io/gothenburgbitfactory/taskchampion-sync-server</code> (SQLite)</li>
+<li><code>ghcr.io/gothenburgbitfactory/taskchampion-sync-server-postgres</code> (Postgres)</li>
 </ul>
+<p>The image tags include <code>latest</code> for the latest release, and both minor and
+patch versions, e.g., <code>0.5</code> and <code>0.5.1</code>.</p>
+<h2 id="running-the-image"><a class="header" href="#running-the-image">Running the Image</a></h2>
+<p>At startup, each image applies some default values and runs the relevant binary
+directly. Configuration is typically by environment variables, all of which are
+documented in the <code>--help</code> output of the binaries. These include</p>
+<ul>
+<li><code>RUST_LOG</code> - log level, one of <code>trace</code>, <code>debug</code>, <code>info</code>, <code>warn</code> and <code>error</code>.</li>
+<li><code>DATA_DIR</code> (SQLite only; default <code>/var/lib/taskchampion-sync-server/data</code>) -
+directory for the synced data.</li>
+<li><code>CONNECTION</code> (Postgres only) - Postgres connection information, in the form
+of a <a href="https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING-URIS">LibPQ-style connection
+URI</a>.</li>
+<li><code>LISTEN</code> (default <code>0.0.0.0:8080</code>) - address and port on which to listen for
+HTTP requests.</li>
+<li><code>CLIENT_ID</code> - comma-separated list of client IDs that will be allowed, or
+empty to allow all clients.</li>
+<li><code>CREATE_CLIENTS</code> (default <code>true</code>) - if true, automatically create clients on
+first sync. If this is set to false, it is up to you to initialize clients in
+the DB.</li>
+</ul>
+<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<pre><code class="language-shell">docker run -d \
+  --name=taskchampion-sync-server \
+  -p 8080:8080 \
+  -e RUST_LOG=debug \
+  -v /data/taskchampion-sync-server:/var/lib/taskchampion-sync-server/data \
+  taskchampion-sync-server
+</code></pre>
+<h3 id="image-specific-setup"><a class="header" href="#image-specific-setup">Image-Specific Setup</a></h3>
+<p>The SQLite image is configured with <code>VOLUME /var/lib/taskchampion-sync-server/data</code>, persisting the task data in an
+anonymous Docker volume. It is recommended to put this on a named volume, or
+persistent storage in an environment like Kubernetes, so that it is not
+accidentally deleted.</p>
+<p>The Postgres image does not automatically create its database schema. See the
+<a href="../integration/pre-built.html">integration section</a> for more detail. This
+implementation is tested with Postgres version 17 but should work with any
+recent version.</p>
+<p>Note that the Docker images do not implement TLS. The expectation is that
+another component, such as a Kubernetes ingress, will terminate the TLS
+connection and proxy HTTP traffic to the taskchampion-sync-server container.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="usage/binaries.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../usage/docker-compose.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="integration/pre-built.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../usage/binaries.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -194,11 +222,11 @@ Protocol Implementation</a>.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="usage/binaries.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../usage/docker-compose.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="integration/pre-built.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../usage/binaries.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
@@ -213,13 +241,13 @@ Protocol Implementation</a>.</p>
         </script>
 
 
-        <script src="elasticlunr.min.js"></script>
-        <script src="mark.min.js"></script>
-        <script src="searcher.js"></script>
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
 
-        <script src="clipboard.min.js"></script>
-        <script src="highlight.js"></script>
-        <script src="book.js"></script>
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
 
         <!-- Custom JS scripts -->
 

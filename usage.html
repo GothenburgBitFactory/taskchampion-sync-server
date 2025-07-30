@@ -156,75 +156,30 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="usage"><a class="header" href="#usage">Usage</a></h1>
-<h2 id="running-the-server"><a class="header" href="#running-the-server">Running the Server</a></h2>
-<p>The server is a simple binary that serves HTTP requests on a TCP port. The
-server does not implement TLS; for public deployments, the recommendation is to
-use a reverse proxy such as Nginx, haproxy, or Apache httpd.</p>
-<h3 id="using-docker-compose"><a class="header" href="#using-docker-compose">Using Docker-Compose</a></h3>
-<p>Every release of the server generates a Docker image in
-<code>ghcr.io/gothenburgbitfactory/taskchampion-sync-server</code>. The tags include
-<code>latest</code> for the latest release, and both minor and patch versions, e.g., <code>0.5</code>
-and <code>0.5.1</code>.</p>
-<p>The
-<a href="https://raw.githubusercontent.com/GothenburgBitFactory/taskchampion-sync-server/refs/tags/v0.6.1/docker-compose.yml"><code>docker-compose.yml</code></a>
-file in this repository is sufficient to run taskchampion-sync-server,
-including setting up TLS certificates using Lets Encrypt, thanks to
-<a href="https://caddyserver.com/">Caddy</a>.</p>
-<p>You will need a server with ports 80 and 443 open to the Internet and with a
-fixed, publicly-resolvable hostname. These ports must be available both to your
-Taskwarrior clients and to the Lets Encrypt servers.</p>
-<p>On that server, download <code>docker-compose.yml</code> from the link above (it is pinned
-to the latest release) into the current directory. Then run</p>
-<pre><code class="language-sh">TASKCHAMPION_SYNC_SERVER_HOSTNAME=taskwarrior.example.com \
-TASKCHAMPION_SYNC_SERVER_CLIENT_ID=your-client-id \
-docker compose up
-</code></pre>
-<p>The <code>TASKCHAMPION_SYNC_SERVER_CLIENT_ID</code> limits the server to the given client
-ID; omit it to allow all client IDs.</p>
-<p>It can take a few minutes to obtain the certificate; the caddy container will
-log a message "certificate obtained successfully" when this is complete, or
-error messages if the process fails. Once this process is complete, configure
-your <code>.taskrc</code>'s to point to the server:</p>
-<pre><code class="language-none">sync.server.url=https://taskwarrior.example.com
-sync.server.client_id=your-client-id
-sync.encryption_secret=your-encryption-secret
-</code></pre>
-<p>The docker-compose images store data in a docker volume named
-<code>taskchampion-sync-server_data</code>. This volume contains all of the task data, as
-well as the TLS certificate information. It will persist over restarts, in a
-typical Docker installation. The docker containers will start automatically on
-system startup. See the docker-compose documentation for more information.</p>
-<h3 id="running-the-binary"><a class="header" href="#running-the-binary">Running the Binary</a></h3>
-<p>The server is configured with command-line options. See
-<code>taskchampion-sync-server --help</code> for full details.</p>
-<p>The <code>--listen</code> option specifies the interface and port the server listens on.
-It must contain an IP-Address or a DNS name and a port number. This option is
-mandatory, but can be repeated to specify multiple interfaces or ports. This
-value can be specified in environment variable <code>LISTEN</code>, as a comma-separated
-list of values.</p>
-<p>The <code>--data-dir</code> option specifies where the server should store its data. This
-value can be specified in the environment variable <code>DATA_DIR</code>.</p>
-<p>By default, the server will allow all clients and create them in the database
-on first contact. There are two ways to limit the clients the server will
-interact with:</p>
+<p>This repository is flexible and can be used in a number of ways, to suit your
+needs.</p>
 <ul>
 <li>
-<p>To limit the accepted client IDs, specify them in the environment variable
-<code>CLIENT_ID</code>, as a comma-separated list of UUIDs. Client IDs can be specified
-with <code>--allow-client-id</code>, but this should not be used on shared systems, as
-command line arguments are visible to all users on the system. This convenient
-option is suitable for personal and small-scale deployments.</p>
+<p>If you only need a place to sync your tasks, using cloud storage may be
+cheaper and easier than running taskchampion-sync-server. See
+<a href="http://taskwarrior.org/docs/man/task-sync.5/">task-sync(5)</a> for details on
+cloud storage.</p>
 </li>
 <li>
-<p>To disable the automatic creation of clients, use the <code>--no-create-clients</code>
-flag or the <code>CREATE_CLIENTS=false</code> environment variable. You are now
-responsible for creating clients in the database manually, so this option is
-more suitable for large scale deployments.</p>
+<p>If you have a publicly accessible server, such as a VPS, you can use <code>docker compose</code> to run taskchampion-sync-server as pre-built docker images. See
+<a href="./usage/docker-compose.html">Docker Compose</a>.</p>
+</li>
+<li>
+<p>If you would like more control, such as to deploy taskchampion-sync-server
+within an orchestration environment such as Kubernetes, you can deploy the
+docker images directly. See <a href="./usage/docker-images.html">Docker Images</a>.</p>
+</li>
+<li>
+<p>For even more control, or to avoid the overhead of container images, you can
+build and run the taskchampion-sync-server binary directly. See
+<a href="./usage/binaries.html">Binaries</a>.</p>
 </li>
 </ul>
-<p>The server only logs errors by default. To add additional logging output, set
-environment variable <code>RUST_LOG</code> to <code>info</code> to get a log message for every
-request, or to <code>debug</code> to get more verbose debugging output.</p>
 
                     </main>
 
@@ -234,7 +189,7 @@ request, or to <code>debug</code> to get more verbose debugging output.</p>
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="integration.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="usage/docker-compose.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -248,7 +203,7 @@ request, or to <code>debug</code> to get more verbose debugging output.</p>
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="integration.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="usage/docker-compose.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

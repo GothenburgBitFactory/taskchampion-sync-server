@@ -156,12 +156,26 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
-<p>Taskchampion Sync-Server is an implementation of the TaskChampion <a href="https://gothenburgbitfactory.org/taskchampion/sync.html">sync
+<p>Taskchampion-sync-server is an implementation of the TaskChampion <a href="https://gothenburgbitfactory.org/taskchampion/sync.html">sync
 protocol</a> server. It supports synchronizing Taskwarrior tasks
 between multiple systems.</p>
 <p>The project provides both pre-built images for common use-cases (see
 <a href="./usage.html">usage</a>) and Rust libraries that can be used to build more
 sophisticated applications (<a href="./integration.html">integration</a>).</p>
+<p>It also serves as a reference implementation: where the
+<a href="https://gothenburgbitfactory.org/taskchampion/sync.html">specification</a> is ambiguous, this implementation's
+interpretation is favored in resolving the ambiguity. Other implementations of
+the protocol should interoperate with this implementation.</p>
+<h2 id="sync-overview"><a class="header" href="#sync-overview">Sync Overview</a></h2>
+<p>The server identifies each user with a client ID. For example, when
+syncing Taskwarrior tasks between a desktop computer and a laptop, both systems
+would use the same client ID to indicate that they share the same user's task data.</p>
+<p>Task data is encrypted, and the server does not have access to the encryption
+secret. The server sees only encrypted data and cannot read or modify tasks in
+any way.</p>
+<p>To perform a sync, a replica first downloads and decrypts any changes that have
+been sent to the server since its last sync. It then gathers any local changes,
+encrypts them, and uploads them to the server.</p>
 
                     </main>
 

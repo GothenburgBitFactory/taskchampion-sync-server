@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Integration - TaskChampion Sync Server</title>
+        <title>Docker Compose - TaskChampion Sync Server</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon.svg">
-        <link rel="shortcut icon" href="favicon.png">
-        <link rel="stylesheet" href="css/variables.css">
-        <link rel="stylesheet" href="css/general.css">
-        <link rel="stylesheet" href="css/chrome.css">
-        <link rel="stylesheet" href="css/print.css" media="print">
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="fonts/fonts.css">
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="highlight-css" href="highlight.css">
-        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
-        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+        <link rel="stylesheet" id="highlight-css" href="../highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="../tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "ayu";
             const default_dark_theme = "navy";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc.js"></script>
+        <script src="../toc.js"></script>
     </head>
     <body>
     <div id="body-container">
@@ -91,7 +91,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -126,7 +126,7 @@
                     <h1 class="menu-title">TaskChampion Sync Server</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
 
@@ -155,36 +155,49 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="integration"><a class="header" href="#integration">Integration</a></h1>
-<p>Taskchampion-sync-server can be integrated into larger applications, such as
-web-based hosting services.</p>
-<ul>
-<li>
-<p>Most deployments can simply use the pre-built Docker images to implement the
-sync protocol, handling other aspects of the application in separate
-containers. See <a href="./integration/pre-built.html">Pre-built Images</a>.</p>
-</li>
-<li>
-<p>More complex deployments may wish to modify or extend the operation of the
-server. These can use the Rust crates to build precisely the desired
-functionality. See <a href="./integration/crates.html">Rust Crates</a>.</p>
-</li>
-<li>
-<p>If desired, an integration may completely re-implement the <a href="https://gothenburgbitfactory.org/taskchampion/sync.html">sync
-protocol</a>. See <a href="./integration/protocol-impl.html">Sync
-Protocol Implementation</a>.</p>
-</li>
-</ul>
+                        <h1 id="docker-compose"><a class="header" href="#docker-compose">Docker Compose</a></h1>
+<p>The
+<a href="https://raw.githubusercontent.com/GothenburgBitFactory/taskchampion-sync-server/refs/tags/v0.6.1/docker-compose.yml"><code>docker-compose.yml</code></a>
+file in this repository is sufficient to run taskchampion-sync-server,
+including setting up TLS certificates using Lets Encrypt, thanks to
+<a href="https://caddyserver.com/">Caddy</a>. This setup uses the SQLite backend, which is
+adequate for one or a few clients.</p>
+<p>You will need a server with ports 80 and 443 open to the Internet and with a
+fixed, publicly-resolvable hostname. These ports must be available both to your
+Taskwarrior clients and to the Lets Encrypt servers.</p>
+<p>On that server, download <code>docker-compose.yml</code> from the link above (it is pinned
+to the latest release) into the current directory. Then run</p>
+<pre><code class="language-sh">TASKCHAMPION_SYNC_SERVER_HOSTNAME=taskwarrior.example.com \
+TASKCHAMPION_SYNC_SERVER_CLIENT_ID=your-client-id \
+docker compose up
+</code></pre>
+<p>The <code>TASKCHAMPION_SYNC_SERVER_CLIENT_ID</code> limits the server to the given client
+ID; omit it to allow all client IDs. You may specify multiple client IDs
+separated by commas.</p>
+<p>It can take a few minutes to obtain the certificate; the caddy container will
+log a message "certificate obtained successfully" when this is complete, or
+error messages if the process fails. Once this process is complete, configure
+your <code>.taskrc</code>'s to point to the server:</p>
+<pre><code class="language-none">sync.server.url=https://taskwarrior.example.com
+sync.server.client_id=your-client-id
+sync.encryption_secret=your-encryption-secret
+</code></pre>
+<p>The docker-compose images store data in a docker volume named
+<code>taskchampion-sync-server_data</code>. This volume contains all of the task data, as
+well as the TLS certificate information. It will persist over restarts, in a
+typical Docker installation. The docker containers will start automatically
+when the Docker dameon starts. See the docker-compose documentation for more
+information.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="usage/binaries.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../usage.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="integration/pre-built.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../usage/docker-images.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -194,11 +207,11 @@ Protocol Implementation</a>.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="usage/binaries.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../usage.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="integration/pre-built.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../usage/docker-images.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
@@ -213,13 +226,13 @@ Protocol Implementation</a>.</p>
         </script>
 
 
-        <script src="elasticlunr.min.js"></script>
-        <script src="mark.min.js"></script>
-        <script src="searcher.js"></script>
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
 
-        <script src="clipboard.min.js"></script>
-        <script src="highlight.js"></script>
-        <script src="book.js"></script>
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
 
         <!-- Custom JS scripts -->
 
