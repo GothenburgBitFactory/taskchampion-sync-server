@@ -25,7 +25,7 @@
 //!    `taskchampion-sync-server` to never call this method.
 //!  - Insert rows into the `clients` table, using default values for all columns except
 //!    `client_id` and application-specific columns.
-//!  - Delete rows from the `clients` table, using `CASCADE` to ensure any associated data
+//!  - Delete rows from the `clients` table, noting that any associated task data
 //!    is also deleted.
 
 use anyhow::Context;

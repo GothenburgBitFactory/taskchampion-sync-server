@@ -4,4 +4,5 @@
 !core/
 !server/
 !sqlite/
-!docker-entrypoint.sh
+!postgres/
+!entrypoint-*
