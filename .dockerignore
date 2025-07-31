@@ -6,3 +6,4 @@
 !sqlite/
 !postgres/
 !entrypoint-*
+!Dockerfile*
