@@ -33,7 +33,6 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
           file: "./Dockerfile-sqlite"
           platforms: linux/amd64,linux/arm64
           push: true
@@ -64,7 +63,6 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
           file: "./Dockerfile-postgres"
           platforms: linux/amd64,linux/arm64
           push: true
