@@ -118,8 +118,7 @@ jobs:
       - uses: obi1kenobi/cargo-semver-checks-action@v2
         with:
           # exclude the binary package from semver checks, since it is not published as a crate.
-          # exclude postgres temporarily until it is released
-          exclude: taskchampion-sync-server,taskchampion-sync-server-storage-postgres
+          exclude: taskchampion-sync-server
 
   mdbook:
     runs-on: ubuntu-latest
