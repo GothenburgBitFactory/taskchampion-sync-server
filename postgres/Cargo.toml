@@ -1,6 +1,6 @@
 [package]
 name = "taskchampion-sync-server-storage-postgres"
-version = "0.7.0"
+version = "0.7.1-pre"
 authors = ["Dustin J. Mitchell <dustin@v.igoro.us>"]
 edition = "2021"
 description = "Postgres backend for TaskChampion-sync-server"
@@ -16,7 +16,7 @@ bb8.workspace = true
 chrono.workspace = true
 env_logger.workspace = true
 log.workspace = true
-taskchampion-sync-server-core = { path = "../core", version = "0.7.0" }
+taskchampion-sync-server-core = { path = "../core", version = "0.7.1-pre" }
 thiserror.workspace = true
 tokio-postgres.workspace = true
 tokio.workspace = true
