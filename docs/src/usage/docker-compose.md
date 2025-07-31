@@ -1,7 +1,7 @@
 # Docker Compose
 
 The
-[`docker-compose.yml`](https://raw.githubusercontent.com/GothenburgBitFactory/taskchampion-sync-server/refs/tags/v0.6.1/docker-compose.yml)
+[`docker-compose.yml`](https://raw.githubusercontent.com/GothenburgBitFactory/taskchampion-sync-server/refs/tags/v0.7.0/docker-compose.yml)
 file in this repository is sufficient to run taskchampion-sync-server,
 including setting up TLS certificates using Lets Encrypt, thanks to
 [Caddy](https://caddyserver.com/). This setup uses the SQLite backend, which is
