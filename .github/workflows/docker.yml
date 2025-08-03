@@ -33,8 +33,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: "{context}/Dockerfile-sqlite"
+          file: "./Dockerfile-sqlite"
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta-sqlite.outputs.tags }}
@@ -64,8 +63,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: "{context}/Dockerfile-postgres"
+          file: "./Dockerfile-postgres"
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta-postgres.outputs.tags }}
