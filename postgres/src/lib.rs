@@ -39,6 +39,26 @@ use uuid::Uuid;
 #[cfg(test)]
 mod testing;
 
+/// An `ErrorSink` implementation that logs errors to the Rust log.
+#[derive(Debug, Clone, Copy)]
+pub struct LogErrorSink;
+
+impl LogErrorSink {
+    fn new() -> Box<Self> {
+        Box::new(Self)
+    }
+}
+
+impl bb8::ErrorSink<tokio_postgres::Error> for LogErrorSink {
+    fn sink(&self, e: tokio_postgres::Error) {
+        log::error!("Postgres connection error: {e}");
+    }
+
+    fn boxed_clone(&self) -> Box<dyn bb8::ErrorSink<tokio_postgres::Error>> {
+        Self::new()
+    }
+}
+
 /// A storage backend which uses Postgres.
 pub struct PostgresStorage {
     pool: bb8::Pool<PostgresConnectionManager<MakeTlsConnector>>,
@@ -49,7 +69,10 @@ impl PostgresStorage {
         let connector = native_tls::TlsConnector::new()?;
         let connector = postgres_native_tls::MakeTlsConnector::new(connector);
         let manager = PostgresConnectionManager::new_from_stringlike(connection_string, connector)?;
-        let pool = bb8::Pool::builder().build(manager).await?;
+        let pool = bb8::Pool::builder()
+            .error_sink(LogErrorSink::new())
+            .build(manager)
+            .await?;
         Ok(Self { pool })
     }
 }
