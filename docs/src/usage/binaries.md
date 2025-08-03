@@ -16,10 +16,16 @@ The server is configured with command-line options or environment variables.
 See the `--help` output for full details.
 
 For the SQLite binary, the `--data-dir` option or `DATA_DIR` environment
-variable specifies where the server should store its data. For the Postgres
-binary, the `--connection` option or `CONNECTION` environment variable
-specifies the connection information, in the form of a [LibPQ-style connection
+variable specifies where the server should store its data.
+
+For the Postgres binary, the `--connection` option or `CONNECTION` environment
+variable specifies the connection information, in the form of a [LibPQ-style
+connection
 URI](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING-URIS).
+Note that unlike LibPQ, the Rust client only supports `sslmode` values
+`disable`, `prefer`, and `require`, and will always validate CA hostnames and
+certificates when using TLS.
+
 The remaining options are common to all binaries.
 
 The `--listen` option specifies the interface and port the server listens on.
