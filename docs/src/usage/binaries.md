@@ -10,6 +10,22 @@ One binary is provided for each storage backend:
 - `taskchampion-sync-server` (SQLite)
 - `taskchampion-sync-server-postgres` (Postgres)
 
+### Building the Binary
+
+This is a standard Rust project, and can be built with `cargo build --release`.
+
+By default, only the SQLite binary is built. To also build the Postgres binary,
+use 
+```none
+cargo build --release --features postgres
+```
+
+To disable building the SQLite binary and build only the Postgres binary, use
+
+```none
+cargo build --release --no-default-features --features postgres
+```
+
 ### Running the Binary
 
 The server is configured with command-line options or environment variables.
