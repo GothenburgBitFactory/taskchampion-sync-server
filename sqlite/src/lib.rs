@@ -276,11 +276,12 @@ impl StorageTxn for Txn {
              SET
                latest_version_id = ?,
                versions_since_snapshot = versions_since_snapshot + 1
-             WHERE client_id = ? and latest_version_id = ?",
+             WHERE client_id = ? and (latest_version_id = ? or latest_version_id = ?)",
                 params![
                     StoredUuid(version_id),
                     StoredUuid(self.client_id),
-                    StoredUuid(parent_version_id)
+                    StoredUuid(parent_version_id),
+                    StoredUuid(Uuid::nil())
                 ],
             )
             .context("Error updating client for new version")?;
@@ -487,6 +488,23 @@ mod test {
         // check that mismatched version is detected
         assert!(txn.get_snapshot_data(Uuid::new_v4()).await.is_err());
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    /// When an add_version call specifies a `parent_version_id` that does not exist in the
+    /// DB, but no other versions exist, the call succeeds.
+    async fn test_add_version_no_history() -> anyhow::Result<()> {
+        let tmp_dir = TempDir::new()?;
+        let storage = SqliteStorage::new(tmp_dir.path())?;
+        let client_id = Uuid::new_v4();
+        let mut txn = storage.txn(client_id).await?;
+        txn.new_client(Uuid::nil()).await?;
+
+        let version_id = Uuid::new_v4();
+        let parent_version_id = Uuid::new_v4();
+        txn.add_version(version_id, parent_version_id, b"v1".to_vec())
+            .await?;
         Ok(())
     }
 }

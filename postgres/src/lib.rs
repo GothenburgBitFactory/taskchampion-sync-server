@@ -272,8 +272,13 @@ impl StorageTxn for Txn {
                 "UPDATE clients
                     SET latest_version_id = $1,
                         versions_since_snapshot = versions_since_snapshot + 1
-                    WHERE client_id = $2 and latest_version_id = $3",
-                &[&version_id, &self.client_id, &parent_version_id],
+                    WHERE client_id = $2 and (latest_version_id = $3 or latest_version_id = $4)",
+                &[
+                    &version_id,
+                    &self.client_id,
+                    &parent_version_id,
+                    &Uuid::nil(),
+                ],
             )
             .await
             .context("error updating latest_version_id")?;
@@ -685,6 +690,24 @@ mod test {
             txn1.commit().await?;
             txn2.commit().await?;
 
+            Ok(())
+        })
+        .await
+    }
+
+    #[tokio::test]
+    /// When an add_version call specifies a `parent_version_id` that does not exist in the
+    /// DB, but no other versions exist, the call succeeds.
+    async fn test_add_version_no_history() -> anyhow::Result<()> {
+        with_db(async |connection_string, db_client| {
+            let storage = PostgresStorage::new(connection_string).await?;
+            let client_id = make_client(&db_client).await?;
+
+            let mut txn = storage.txn(client_id).await?;
+            let version_id = Uuid::new_v4();
+            let parent_version_id = Uuid::new_v4();
+            txn.add_version(version_id, parent_version_id, b"v1".to_vec())
+                .await?;
             Ok(())
         })
         .await
