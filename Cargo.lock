@@ -1859,7 +1859,7 @@ dependencies = [
 
 [[package]]
 name = "taskchampion-sync-server"
-version = "0.7.1-pre"
+version = "0.7.1"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1883,7 +1883,7 @@ dependencies = [
 
 [[package]]
 name = "taskchampion-sync-server-core"
-version = "0.7.1-pre"
+version = "0.7.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1898,7 +1898,7 @@ dependencies = [
 
 [[package]]
 name = "taskchampion-sync-server-storage-postgres"
-version = "0.7.1-pre"
+version = "0.7.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1921,7 +1921,7 @@ dependencies = [
 
 [[package]]
 name = "taskchampion-sync-server-storage-sqlite"
-version = "0.7.1-pre"
+version = "0.7.1"
 dependencies = [
  "anyhow",
  "async-trait",
