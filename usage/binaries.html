@@ -165,15 +165,28 @@ httpd.</p>
 <li><code>taskchampion-sync-server</code> (SQLite)</li>
 <li><code>taskchampion-sync-server-postgres</code> (Postgres)</li>
 </ul>
+<h3 id="building-the-binary"><a class="header" href="#building-the-binary">Building the Binary</a></h3>
+<p>This is a standard Rust project, and can be built with <code>cargo build --release</code>.</p>
+<p>By default, only the SQLite binary is built. To also build the Postgres binary,
+use</p>
+<pre><code class="language-none">cargo build --release --features postgres
+</code></pre>
+<p>To disable building the SQLite binary and build only the Postgres binary, use</p>
+<pre><code class="language-none">cargo build --release --no-default-features --features postgres
+</code></pre>
 <h3 id="running-the-binary"><a class="header" href="#running-the-binary">Running the Binary</a></h3>
 <p>The server is configured with command-line options or environment variables.
 See the <code>--help</code> output for full details.</p>
 <p>For the SQLite binary, the <code>--data-dir</code> option or <code>DATA_DIR</code> environment
-variable specifies where the server should store its data. For the Postgres
-binary, the <code>--connection</code> option or <code>CONNECTION</code> environment variable
-specifies the connection information, in the form of a <a href="https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING-URIS">LibPQ-style connection
+variable specifies where the server should store its data.</p>
+<p>For the Postgres binary, the <code>--connection</code> option or <code>CONNECTION</code> environment
+variable specifies the connection information, in the form of a <a href="https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING-URIS">LibPQ-style
+connection
 URI</a>.
-The remaining options are common to all binaries.</p>
+Note that unlike LibPQ, the Rust client only supports <code>sslmode</code> values
+<code>disable</code>, <code>prefer</code>, and <code>require</code>, and will always validate CA hostnames and
+certificates when using TLS.</p>
+<p>The remaining options are common to all binaries.</p>
 <p>The <code>--listen</code> option specifies the interface and port the server listens on.
 It must contain an IP-Address or a DNS name and a port number. This option is
 mandatory, but can be repeated to specify multiple interfaces or ports. This
