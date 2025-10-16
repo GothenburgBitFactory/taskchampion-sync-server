@@ -74,20 +74,17 @@ To build the images, execute the following commands.
 
 SQLite:
 ```sh
-source .env
 docker build \
-  --build-arg RUST_VERSION=${RUST_VERSION} \
-  --build-arg ALPINE_VERSION=${ALPINE_VERSION} \
-  -t taskchampion-sync-server docker/sqlite
+  -t taskchampion-sync-server \
+  -f Dockerfile-sqlite
 ```
 
 Postgres:
 ```sh
 source .env
 docker build \
-  --build-arg RUST_VERSION=${RUST_VERSION} \
-  --build-arg ALPINE_VERSION=${ALPINE_VERSION} \
-  -t taskchampion-sync-server-postgres docker/postgres
+  -t taskchampion-sync-server-postgres \
+  -f Dockerfile-postgres
 ```
 
 Now to run it, simply exec.
