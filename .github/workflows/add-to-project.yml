@@ -1,0 +1,18 @@
+# This adds all new issues to the Taskwarrior project, for better tracking.
+# It uses a PAT that belongs to @taskwarrior.
+name: Add issues to Taskwarrior Project
+
+on:
+  issues:
+    types:
+      - opened
+
+jobs:
+  add-to-project:
+    name: Add issue to project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/add-to-project@v1.0.2
+        with:
+          project-url: https://github.com/orgs/GothenburgBitFactory/projects/4
+          github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
