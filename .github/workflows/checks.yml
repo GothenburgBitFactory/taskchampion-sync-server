@@ -13,7 +13,7 @@ jobs:
     name: "Check & Clippy"
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -48,7 +48,7 @@ jobs:
     name: "Rustdoc"
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -96,7 +96,7 @@ jobs:
     runs-on: ubuntu-latest
     name: "Formatting"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     name: "Cargo Semver Checks"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: obi1kenobi/cargo-semver-checks-action@v2
         with:
           # exclude the binary package from semver checks, since it is not published as a crate.
@@ -125,7 +125,7 @@ jobs:
     name: "mdBook Documentation"
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v2
