@@ -6,7 +6,7 @@ members = [
   "sqlite",
   "postgres",
 ]
-rust-version = "1.85.0" # MSRV
+rust-version = "1.88.0" # MSRV
 
 [workspace.dependencies]
 async-trait = "0.1.88"
