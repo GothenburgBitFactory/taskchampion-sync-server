@@ -5,6 +5,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions:
+        patterns: ["*"]
   # Enable updates for Rust packages
   - package-ecosystem: "cargo"
     directory: "/" # Location of package manifests
@@ -16,3 +19,8 @@ updates:
       # behind
       - dependency-name: "*"
         update-types: ["version-update:semver-patch"]
+    groups:
+      cargo:
+        patterns: ["*"]
+        # leave major changes in their own PRs
+        update-types: ["minor", "patch"]
