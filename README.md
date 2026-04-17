@@ -76,7 +76,7 @@ SQLite:
 ```sh
 docker build \
   -t taskchampion-sync-server \
-  -f Dockerfile-sqlite
+  -f Dockerfile-sqlite .
 ```
 
 Postgres:
@@ -84,7 +84,7 @@ Postgres:
 source .env
 docker build \
   -t taskchampion-sync-server-postgres \
-  -f Dockerfile-postgres
+  -f Dockerfile-postgres .
 ```
 
 Now to run it, simply exec.
