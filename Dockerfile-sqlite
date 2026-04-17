@@ -1,6 +1,6 @@
 # Versions must be major.minor
 # Default versions are as below
-ARG RUST_VERSION=1.85
+ARG RUST_VERSION=1.88
 ARG ALPINE_VERSION=3.20
 
 FROM docker.io/rust:${RUST_VERSION}-alpine${ALPINE_VERSION} AS builder
