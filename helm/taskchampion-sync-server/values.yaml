@@ -53,9 +53,10 @@ replicas:
   count: 1
 
 # Security context for the pod
+# NOTE: runAsUser and runAsGroup are intentionally unset.
+# The Docker entrypoint requires root to chown the data directory and then
+# drops privileges via su-exec to the taskchampion user (uid 1092).
 securityContext:
-  runAsUser: 1092
-  runAsGroup: 100
   fsGroup: 100
 
 # SQLite backend configuration (mutually exclusive with postgres)
