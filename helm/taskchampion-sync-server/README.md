@@ -43,18 +43,17 @@ Reference it via `clientIdSecret: "my-client-ids"`.
 
 ### PostgreSQL Secret
 
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: my-postgres-creds
-type: Opaque
-data:
-  connection: <base64-encoded LibPQ connection URI>
-  password: <base64-encoded password>
-```
+For PostgreSQL, the chart can automatically create a secret with the connection string, or use an existing secret. 
 
-Reference it via `postgres.existingSecret: "my-postgres-creds"`.
+**Automatic Secret Creation**:
+- When `postgres.existingSecret` is empty (default), the chart automatically creates a secret
+- Secret is named using Helm naming convention: `release-name-taskchampion-sync-server`
+- Secret contains only a `connection` key with the built connection string
+
+**Existing Secret Usage**:
+- When `postgres.existingSecret` is provided, the chart uses that secret
+- The secret **must** contain a `connection` key with the PostgreSQL connection string
+- If the secret doesn't have a `connection` key, the deployment will fail with a clear error
 
 ## Configuration
 

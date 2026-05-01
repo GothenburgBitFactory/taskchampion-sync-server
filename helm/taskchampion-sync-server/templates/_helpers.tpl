@@ -67,9 +67,5 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{- define "taskchampion-sync-server.postgres-secret-name" -}}
-  {{- if .Values.postgres.existingSecret -}}
-    {{- .Values.postgres.existingSecret -}}
-  {{- else -}}
-    {{- include "taskchampion-sync-server.fullname" . -}}
-  {{- end }}
+{{- printf "%s-connection" .Release.Name -}}
 {{- end -}}
