@@ -42,7 +42,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 
 {{- define "taskchampion-sync-server.postgres-connection" -}}
   {{- $host := .Values.postgres.host -}}
-  {{- $port := .Values.postgres.port | quote -}}
+  {{- $port := .Values.postgres.port -}}
   {{- $username := .Values.postgres.username -}}
   {{- $password := .Values.postgres.password -}}
   {{- $database := .Values.postgres.database -}}
@@ -57,8 +57,8 @@ app.kubernetes.io/instance: {{ .Release.Name }}
     {{- $uri = printf "%s@" $uri -}}
   {{- end -}}
   {{- $uri = printf "%s%s" $uri $host -}}
-  {{- if ne $port "5432" -}}
-    {{- $uri = printf "%s:%s" $uri $port -}}
+  {{- if ne (printf "%v" $port) "5432" -}}
+    {{- $uri = printf "%s:%v" $uri $port -}}
   {{- end -}}
   {{- if ne $database "taskchampion" -}}
     {{- $uri = printf "%s/%s" $uri $database -}}
