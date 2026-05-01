@@ -79,10 +79,17 @@ sqlite:
     storageClass: ""
     existingClaim: ""
 
-# PostgreSQL backend configuration (mutually exclusive with sqlite)
+# Service account configuration
+serviceAccount:
+  create: true  # Default: automatically create service account
+  name: ""      # Optional: use existing service account
+  annotations: {}
+
+# PostgreSQL configuration
 postgres:
   enabled: false
-  existingSecret: ""
+  existingSecret: ""  # If empty, auto-create secret; if provided, use existing
+  # Individual connection components for building connection string
   database: taskchampion
   host: postgres
   port: 5432
