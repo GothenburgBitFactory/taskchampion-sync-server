@@ -66,6 +66,14 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   {{- $uri -}}
 {{- end -}}
 
+{{- define "taskchampion-sync-server.schema-url" -}}
+{{- if .Values.postgres.initContainer.schemaUrl -}}
+{{- .Values.postgres.initContainer.schemaUrl -}}
+{{- else -}}
+{{- printf "https://raw.githubusercontent.com/GothenburgBitFactory/taskchampion-sync-server/v%s/postgres/schema.sql" .Chart.AppVersion -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "taskchampion-sync-server.postgres-secret-name" -}}
 {{- printf "%s-connection" .Release.Name -}}
 {{- end -}}
