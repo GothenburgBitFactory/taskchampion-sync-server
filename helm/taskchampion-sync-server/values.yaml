@@ -1,3 +1,8 @@
+# Override the chart name used in resource names
+nameOverride: ""
+# Override the full resource name (takes precedence over nameOverride)
+fullnameOverride: ""
+
 # Image configuration
 image:
   repository: ghcr.io/gothenburgbitfactory/taskchampion-sync-server
