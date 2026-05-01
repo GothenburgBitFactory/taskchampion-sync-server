@@ -14,7 +14,7 @@ clientIdSecret: ""
 env:
   RUST_LOG: info
   LISTEN: "0.0.0.0:8080"
-  CREATE_CLIENTS: "false"
+  CREATE_CLIENTS: "true"
 
 # Service configuration
 service:
