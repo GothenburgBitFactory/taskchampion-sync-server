@@ -3,7 +3,6 @@ sqlite:
 
 postgres:
   enabled: true
-  existingSecret: "taskchampion-postgres-creds"
   database: taskchampion
   host: postgres-primary
   username: taskchampion-user
