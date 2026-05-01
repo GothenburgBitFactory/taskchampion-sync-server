@@ -52,17 +52,7 @@ spec:
             {{- end }}
             {{- if eq .Values.postgres.enabled true }}
             - name: CONNECTION
-              valueFrom:
-                secretKeyRef:
-                  name: {{ required "postgres.existingSecret is required when postgres is enabled" .Values.postgres.existingSecret }}
-                  key: connection
-                  optional: true
-            - name: PGPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.postgres.existingSecret }}
-                  key: password
-                  optional: true
+              value: {{ include "taskchampion-sync-server.postgres-connection" . | quote }}
             {{- end }}
           ports:
             - name: http

@@ -39,3 +39,68 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{- define "taskchampion-sync-server.postgres-connection" -}}
+  {{- $secret := .Values.postgres.existingSecret -}}
+  {{- $secretData := "" -}}
+  {{- if $secret -}}
+    {{- $secretData = (lookup "v1" "Secret" .Release.Namespace $secret).data -}}
+  {{- end -}}
+  
+  {{- $host := "" -}}
+  {{- $port := "5432" -}}
+  {{- $username := "" -}}
+  {{- $password := "" -}}
+  {{- $database := "taskchampion" -}}
+  
+  {{- /* Get values from secret (higher priority) */ -}}
+  {{- if $secretData -}}
+    {{- if hasKey $secretData "host" -}}
+      {{- $host = (b64dec $secretData.host) -}}
+    {{- end -}}
+    {{- if hasKey $secretData "port" -}}
+      {{- $port = (b64dec $secretData.port) -}}
+    {{- end -}}
+    {{- if hasKey $secretData "username" -}}
+      {{- $username = (b64dec $secretData.username) -}}
+    {{- end -}}
+    {{- if hasKey $secretData "password" -}}
+      {{- $password = (b64dec $secretData.password) -}}
+    {{- end -}}
+    {{- if hasKey $secretData "database" -}}
+      {{- $database = (b64dec $secretData.database) -}}
+    {{- end -}}
+  {{- end -}}
+  
+  {{- /* Fallback to values.yaml */ -}}
+  {{- if eq $host "" -}}
+    {{- $host = .Values.postgres.host -}}
+  {{- end -}}
+  {{- if eq $username "" -}}
+    {{- $username = .Values.postgres.username -}}
+  {{- end -}}
+  {{- if eq $password "" -}}
+    {{- $password = .Values.postgres.password -}}
+  {{- end -}}
+  {{- if eq $database "" -}}
+    {{- $database = .Values.postgres.database -}}
+  {{- end -}}
+  
+  {{- /* Build URI */ -}}
+  {{- $uri := printf "postgresql://" -}}
+  {{- if ne $username "" -}}
+    {{- $uri = printf "%s%s" $uri $username -}}
+    {{- if ne $password "" -}}
+      {{- $uri = printf "%s:%s" $uri $password -}}
+    {{- end -}}
+    {{- $uri = printf "%s@" $uri -}}
+  {{- end -}}
+  {{- $uri = printf "%s%s" $uri $host -}}
+  {{- if ne $port "5432" -}}
+    {{- $uri = printf "%s:%s" $uri $port -}}
+  {{- end -}}
+  {{- if ne $database "taskchampion" -}}
+    {{- $uri = printf "%s/%s" $uri $database -}}
+  {{- end -}}
+  {{- $uri -}}
+{{- end -}}
