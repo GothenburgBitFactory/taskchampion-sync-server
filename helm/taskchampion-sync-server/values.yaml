@@ -1,0 +1,84 @@
+# Image configuration
+image:
+  repository: ghcr.io/gothenburgbitfactory/taskchampion-sync-server
+  tag: "0.7.0"
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# Existing secret containing client IDs (comma-separated UUIDs)
+# Expected key: client-ids
+clientIdSecret: ""
+
+# Environment variables passed directly to the container
+# NOTE: DATA_DIR and CONNECTION are set automatically based on backend
+env:
+  RUST_LOG: info
+  LISTEN: "0.0.0.0:8080"
+  CREATE_CLIENTS: "false"
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
+
+# HTTPRoute configuration (Kubernetes Gateway API)
+httpRoute:
+  enabled: false
+  gateway: ""
+  host: ""
+  path: "/"
+  port: 8080
+
+# Resource limits and requests
+resources: {}
+  # limits:
+  #   memory: 128Mi
+  #   cpu: 100m
+  # requests:
+  #   memory: 64Mi
+  #   cpu: 50m
+
+# Replica configuration (only applies when postgres is enabled)
+replicas:
+  enabled: false
+  count: 1
+
+# Security context for the pod
+securityContext:
+  runAsUser: 1092
+  runAsGroup: 100
+  fsGroup: 100
+
+# SQLite backend configuration (mutually exclusive with postgres)
+sqlite:
+  enabled: false
+  dataDir: /var/lib/taskchampion-sync-server/data
+  existingPV: ""
+  emptyDir:
+    sizeLimit: ""
+    medium: ""
+  persistence:
+    enabled: true
+    size: 1Gi
+    accessMode: ReadWriteOnce
+    storageClass: ""
+    existingClaim: ""
+
+# PostgreSQL backend configuration (mutually exclusive with sqlite)
+postgres:
+  enabled: false
+  existingSecret: ""
+  database: taskchampion
+  host: postgres
+  port: 5432
+  username: user
+  password: ""

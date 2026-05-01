@@ -1,0 +1,17 @@
+{{- if and (eq .Values.sqlite.enabled true) .Values.sqlite.persistence.enabled (not .Values.sqlite.existingPV) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "taskchampion-sync-server.fullname" . }}-pvc
+  labels:
+    {{- include "taskchampion-sync-server.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.sqlite.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.sqlite.persistence.size }}
+  {{- if .Values.sqlite.persistence.storageClass }}
+  storageClassName: {{ .Values.sqlite.persistence.storageClass }}
+  {{- end }}
+{{- end }}

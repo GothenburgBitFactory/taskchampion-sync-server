@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "taskchampion-sync-server.fullname" . }}
+  labels:
+    {{- include "taskchampion-sync-server.labels" . | nindent 4 }}
+spec:
+  {{- if and (eq .Values.postgres.enabled true) .Values.replicas.enabled }}
+  replicas: {{ .Values.replicas.count }}
+  {{- else }}
+  replicas: 1
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "taskchampion-sync-server.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "taskchampion-sync-server.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      containers:
+        - name: taskchampion-sync-server
+          {{- if eq .Values.postgres.enabled true }}
+          image: "{{ .Values.image.repository }}-postgres:{{ .Values.image.tag }}"
+          {{- else }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            {{- range $name, $value := .Values.env }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- if .Values.clientIdSecret }}
+            - name: CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.clientIdSecret }}
+                  key: client-ids
+            {{- end }}
+            {{- if eq .Values.sqlite.enabled true }}
+            - name: DATA_DIR
+              value: {{ .Values.sqlite.dataDir }}
+            {{- end }}
+            {{- if eq .Values.postgres.enabled true }}
+            - name: CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "postgres.existingSecret is required when postgres is enabled" .Values.postgres.existingSecret }}
+                  key: connection
+                  optional: true
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: password
+                  optional: true
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if eq .Values.sqlite.enabled true }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.sqlite.dataDir }}
+          {{- end }}
+      {{- if eq .Values.sqlite.enabled true }}
+      volumes:
+        {{- if .Values.sqlite.existingPV }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Values.sqlite.existingPV }}
+        {{- else if .Values.sqlite.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "taskchampion-sync-server.fullname" . }}-pvc
+        {{- else }}
+        - name: data
+          emptyDir:
+            {{- if .Values.sqlite.emptyDir.sizeLimit }}
+            sizeLimit: {{ .Values.sqlite.emptyDir.sizeLimit }}
+            {{- end }}
+            {{- if .Values.sqlite.emptyDir.medium }}
+            medium: {{ .Values.sqlite.emptyDir.medium }}
+            {{- end }}
+        {{- end }}
+      {{- end }}
