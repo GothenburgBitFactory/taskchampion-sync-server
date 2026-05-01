@@ -18,11 +18,10 @@ spec:
       labels:
         {{- include "taskchampion-sync-server.selectorLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.image.pullSecrets }}
-      imagePullSecrets:
-        {{- range . }}
-        - name: {{ . }}
-        {{- end }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "taskchampion-sync-server.fullname" . }}
+      {{- else if .Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
       {{- end }}
       securityContext:
         {{- toYaml .Values.securityContext | nindent 8 }}
@@ -52,7 +51,10 @@ spec:
             {{- end }}
             {{- if eq .Values.postgres.enabled true }}
             - name: CONNECTION
-              value: {{ include "taskchampion-sync-server.postgres-connection" . | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "taskchampion-sync-server.postgres-secret-name" . }}
+                  key: connection
             {{- end }}
           ports:
             - name: http
