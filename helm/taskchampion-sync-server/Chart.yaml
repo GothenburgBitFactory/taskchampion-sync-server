@@ -12,4 +12,6 @@ keywords:
 home: https://github.com/GothenburgBitFactory/taskchampion-sync-server
 sources:
   - https://github.com/GothenburgBitFactory/taskchampion-sync-server
-maintainers: []
+maintainers: 
+  - name: Jansen Fuller
+    email: jansendfuller@mailfence.com
