@@ -42,13 +42,35 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 
 {{- define "taskchampion-sync-server.postgres-connection" -}}
   {{- $host := .Values.postgres.host -}}
-  {{- $port := .Values.postgres.port -}}
+  {{- $port := .Values.postgres.port | toString -}}
   {{- $username := .Values.postgres.username -}}
   {{- $password := .Values.postgres.password -}}
   {{- $database := .Values.postgres.database -}}
-  
+
+  {{- /* Override individual fields from existingSecret where present */ -}}
+  {{- if .Values.postgres.existingSecret -}}
+    {{- $secret := lookup "v1" "Secret" .Release.Namespace .Values.postgres.existingSecret -}}
+    {{- if $secret -}}
+      {{- if index $secret.data "host" -}}
+        {{- $host = index $secret.data "host" | b64dec -}}
+      {{- end -}}
+      {{- if index $secret.data "port" -}}
+        {{- $port = index $secret.data "port" | b64dec -}}
+      {{- end -}}
+      {{- if index $secret.data "username" -}}
+        {{- $username = index $secret.data "username" | b64dec -}}
+      {{- end -}}
+      {{- if index $secret.data "password" -}}
+        {{- $password = index $secret.data "password" | b64dec -}}
+      {{- end -}}
+      {{- if index $secret.data "database" -}}
+        {{- $database = index $secret.data "database" | b64dec -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+
   {{- /* Build URI */ -}}
-  {{- $uri := printf "postgresql://" -}}
+  {{- $uri := "postgresql://" -}}
   {{- if ne $username "" -}}
     {{- $uri = printf "%s%s" $uri $username -}}
     {{- if ne $password "" -}}
@@ -57,8 +79,8 @@ app.kubernetes.io/instance: {{ .Release.Name }}
     {{- $uri = printf "%s@" $uri -}}
   {{- end -}}
   {{- $uri = printf "%s%s" $uri $host -}}
-  {{- if ne (printf "%v" $port) "5432" -}}
-    {{- $uri = printf "%s:%v" $uri $port -}}
+  {{- if ne $port "5432" -}}
+    {{- $uri = printf "%s:%s" $uri $port -}}
   {{- end -}}
   {{- if ne $database "taskchampion" -}}
     {{- $uri = printf "%s/%s" $uri $database -}}
@@ -75,9 +97,5 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{- define "taskchampion-sync-server.postgres-secret-name" -}}
-{{- if .Values.postgres.existingSecret -}}
-{{- .Values.postgres.existingSecret -}}
-{{- else -}}
 {{- printf "%s-connection" .Release.Name -}}
-{{- end -}}
 {{- end -}}

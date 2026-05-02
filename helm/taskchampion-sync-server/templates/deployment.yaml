@@ -34,7 +34,7 @@ spec:
             - name: PGURI
               valueFrom:
                 secretKeyRef:
-                  name: {{ printf "%s-connection" .Release.Name }}
+                  name: {{ include "taskchampion-sync-server.postgres-secret-name" . }}
                   key: connection
             - name: SCHEMA_URL
               value: {{ include "taskchampion-sync-server.schema-url" . | quote }}
