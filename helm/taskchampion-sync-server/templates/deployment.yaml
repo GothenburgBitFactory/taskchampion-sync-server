@@ -31,28 +31,11 @@ spec:
           image: "{{ .Values.postgres.initContainer.image }}"
           imagePullPolicy: {{ .Values.postgres.initContainer.imagePullPolicy }}
           env:
-            - name: PGHOST
+            - name: PGURI
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "taskchampion-sync-server.postgres-secret-name" . }}
-                  key: host
-            - name: PGPORT
-              value: "{{ .Values.postgres.port }}"
-            - name: PGUSER
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "taskchampion-sync-server.postgres-secret-name" . }}
-                  key: username
-            - name: PGPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "taskchampion-sync-server.postgres-secret-name" . }}
-                  key: password
-            - name: PGDATABASE
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "taskchampion-sync-server.postgres-secret-name" . }}
-                  key: database
+                  name: {{ printf "%s-connection" .Release.Name }}
+                  key: connection
             - name: SCHEMA_URL
               value: {{ include "taskchampion-sync-server.schema-url" . | quote }}
           command:
@@ -60,7 +43,7 @@ spec:
             - -c
             - |
               set -e
-              until pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER"; do
+              until pg_isready -d "$PGURI"; do
                 echo 'Waiting for PostgreSQL...'
                 sleep 2
               done
@@ -69,7 +52,7 @@ spec:
                 echo 'Failed to download schema - continuing with main container'
                 exit 0
               }
-              psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -f /tmp/schema.sql || {
+              psql "$PGURI" -f /tmp/schema.sql || {
                 echo 'Schema execution failed (SQL error) - continuing with main container'
                 exit 0
               }
