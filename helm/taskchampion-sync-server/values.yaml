@@ -95,6 +95,10 @@ postgres:
   port: 5432
   username: user
   password: ""
+  # SSL mode for the PostgreSQL connection.
+  # Use 'disable' for internal cluster connections (no TLS).
+  # Options: disable, allow, prefer, require, verify-ca, verify-full
+  sslMode: disable
   initContainer:
     enabled: true
     image: postgres:15-alpine
