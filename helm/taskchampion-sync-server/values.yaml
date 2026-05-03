@@ -101,7 +101,7 @@ postgres:
   sslMode: disable
   initContainer:
     enabled: true
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     imagePullPolicy: IfNotPresent
     # Override the schema URL. Defaults to the official schema for this chart's appVersion.
     # e.g. https://raw.githubusercontent.com/GothenburgBitFactory/taskchampion-sync-server/v0.7.0/postgres/schema.sql
