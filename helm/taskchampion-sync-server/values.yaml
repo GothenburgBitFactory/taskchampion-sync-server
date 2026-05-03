@@ -1,0 +1,108 @@
+# Override the chart name used in resource names
+nameOverride: ""
+# Override the full resource name (takes precedence over nameOverride)
+fullnameOverride: ""
+
+# Image configuration
+image:
+  repository: ghcr.io/gothenburgbitfactory/taskchampion-sync-server
+  tag: "0.7.0"
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# Existing secret containing client IDs (comma-separated UUIDs)
+# Expected key: client-ids
+clientIdSecret: ""
+
+# Environment variables passed directly to the container
+# NOTE: DATA_DIR and CONNECTION are set automatically based on backend
+env:
+  RUST_LOG: info
+  LISTEN: "0.0.0.0:8080"
+  CREATE_CLIENTS: "true"
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
+
+# HTTPRoute configuration (Kubernetes Gateway API)
+httpRoute:
+  enabled: false
+  gateway: ""
+  host: ""
+  path: "/"
+  port: 8080
+
+# Resource limits and requests
+resources: {}
+  # limits:
+  #   memory: 128Mi
+  #   cpu: 100m
+  # requests:
+  #   memory: 64Mi
+  #   cpu: 50m
+
+# Replica configuration (only applies when postgres is enabled)
+replicas:
+  enabled: false
+  count: 1
+
+# Security context for the pod
+# NOTE: runAsUser and runAsGroup are intentionally unset.
+# The Docker entrypoint requires root to chown the data directory and then
+# drops privileges via su-exec to the taskchampion user (uid 1092).
+securityContext:
+  fsGroup: 100
+
+# SQLite backend configuration (mutually exclusive with postgres)
+sqlite:
+  enabled: false
+  dataDir: /var/lib/taskchampion-sync-server/data
+  existingPV: ""
+  emptyDir:
+    sizeLimit: ""
+    medium: ""
+  persistence:
+    enabled: true
+    size: 1Gi
+    accessMode: ReadWriteOnce
+    storageClass: ""
+    existingClaim: ""
+
+# Service account configuration
+serviceAccount:
+  create: true  # Default: automatically create service account
+  name: ""      # Optional: use existing service account
+  annotations: {}
+
+# PostgreSQL configuration
+postgres:
+  enabled: false
+  existingSecret: ""  # If empty, auto-create secret; if provided, use existing
+  # Individual connection components for building connection string
+  database: taskchampion
+  host: postgres
+  port: 5432
+  username: user
+  password: ""
+  # SSL mode for the PostgreSQL connection.
+  # Use 'disable' for internal cluster connections (no TLS).
+  # Options: disable, allow, prefer, require, verify-ca, verify-full
+  sslMode: disable
+  initContainer:
+    enabled: true
+    image: postgres:17-alpine
+    imagePullPolicy: IfNotPresent
+    # Override the schema URL. Defaults to the official schema for this chart's appVersion.
+    # e.g. https://raw.githubusercontent.com/GothenburgBitFactory/taskchampion-sync-server/v0.7.0/postgres/schema.sql
+    schemaUrl: ""
