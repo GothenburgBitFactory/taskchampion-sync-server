@@ -82,8 +82,9 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   {{- if ne $port "5432" -}}
     {{- $uri = printf "%s:%s" $uri $port -}}
   {{- end -}}
-  {{- if ne $database "taskchampion" -}}
-    {{- $uri = printf "%s/%s" $uri $database -}}
+  {{- $uri = printf "%s/%s" $uri $database -}}
+  {{- if .Values.postgres.sslMode -}}
+    {{- $uri = printf "%s?sslmode=%s" $uri .Values.postgres.sslMode -}}
   {{- end -}}
   {{- $uri -}}
 {{- end -}}
