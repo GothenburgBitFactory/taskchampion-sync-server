@@ -38,6 +38,13 @@ spec:
                   key: connection
             - name: SCHEMA_URL
               value: {{ include "taskchampion-sync-server.schema-url" . | quote }}
+            {{- if .Values.clientIdSecret }}
+            - name: CLIENT_IDS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.clientIdSecret }}
+                  key: client-ids
+            {{- end }}
           command:
             - sh
             - -c
@@ -57,6 +64,19 @@ spec:
                 exit 0
               }
               echo 'Schema executed successfully'
+              if [ -n "$CLIENT_IDS" ]; then
+                echo "Inserting client IDs..."
+                IFS=','
+                for client_id in $CLIENT_IDS; do
+                  client_id=$(echo "$client_id" | tr -d ' ')
+                  [ -z "$client_id" ] && continue
+                  psql "$PGURI" -c "INSERT INTO clients (client_id) VALUES ('$client_id') ON CONFLICT (client_id) DO NOTHING;" || {
+                    echo "Failed to insert client $client_id - continuing"
+                  }
+                done
+                unset IFS
+                echo "Client ID insertion complete"
+              fi
       {{- end }}
       containers:
         - name: taskchampion-sync-server
