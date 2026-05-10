@@ -74,6 +74,7 @@ pub(crate) async fn service(
                         rb.append_header((SNAPSHOT_REQUEST_HEADER, "urgency=high"));
                     }
                 };
+                server_state.changes.notify(client_id, version_id);
                 Ok(rb.finish())
             }
             Ok((AddVersionResult::ExpectedParentVersion(parent_version_id), _)) => {
@@ -106,6 +107,7 @@ mod test {
         web::{WebConfig, WebServer},
     };
     use actix_web::{http::StatusCode, test, App};
+    use futures::StreamExt;
     use pretty_assertions::assert_eq;
     use taskchampion_sync_server_core::{InMemoryStorage, ServerConfig, Storage};
     use uuid::Uuid;
@@ -125,6 +127,7 @@ mod test {
         }
 
         let server = WebServer::new(ServerConfig::default(), WebConfig::default(), storage);
+        let mut changes = server.server_state.changes.subscribe(client_id);
         let app = App::new().configure(|sc| server.config(sc));
         let app = test::init_service(app).await;
 
@@ -145,6 +148,11 @@ mod test {
         // the passed parent version ID, at least
         let new_version_id = resp.headers().get("X-Version-Id").unwrap();
         assert!(new_version_id != &version_id.to_string());
+        let new_version_id = Uuid::parse_str(new_version_id.to_str().unwrap()).unwrap();
+
+        let event = changes.next().await.unwrap();
+        assert_eq!(event.client_id, client_id);
+        assert_eq!(event.version_id, new_version_id);
 
         // Shapshot should be requested, since there is no existing snapshot
         let snapshot_request = resp.headers().get("X-Snapshot-Request").unwrap();
