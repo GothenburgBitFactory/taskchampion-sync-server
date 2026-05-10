@@ -5,8 +5,11 @@ use crate::web::WebConfig;
 
 mod add_snapshot;
 mod add_version;
+mod events;
 mod get_child_version;
 mod get_snapshot;
+
+pub(crate) use events::ChangeNotifier;
 
 /// The content-type for history segments (opaque blobs of bytes)
 pub(crate) const HISTORY_SEGMENT_CONTENT_TYPE: &str =
@@ -31,6 +34,7 @@ pub(crate) const SNAPSHOT_REQUEST_HEADER: &str = "X-Snapshot-Request";
 pub(crate) struct ServerState {
     pub(crate) server: Server,
     pub(crate) web_config: WebConfig,
+    pub(crate) changes: ChangeNotifier,
 }
 
 impl ServerState {
@@ -60,6 +64,7 @@ pub(crate) fn api_scope() -> Scope {
         .service(add_version::service)
         .service(get_snapshot::service)
         .service(add_snapshot::service)
+        .service(events::service)
 }
 
 /// Convert a `anyhow::Error` to an Actix ISE
@@ -89,8 +94,10 @@ mod test {
             web_config: WebConfig {
                 client_id_allowlist: None,
                 create_clients: true,
+                sync_events: false,
                 ..WebConfig::default()
             },
+            changes: ChangeNotifier::default(),
         };
         let req = actix_web::test::TestRequest::default()
             .insert_header((CLIENT_ID_HEADER, client_id.to_string()))
@@ -107,8 +114,10 @@ mod test {
             web_config: WebConfig {
                 client_id_allowlist: Some([client_id_ok].into()),
                 create_clients: true,
+                sync_events: false,
                 ..WebConfig::default()
             },
+            changes: ChangeNotifier::default(),
         };
         let req = actix_web::test::TestRequest::default()
             .insert_header((CLIENT_ID_HEADER, client_id_ok.to_string()))
