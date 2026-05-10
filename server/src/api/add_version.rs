@@ -74,7 +74,7 @@ pub(crate) async fn service(
                         rb.append_header((SNAPSHOT_REQUEST_HEADER, "urgency=high"));
                     }
                 };
-                server_state.changes.notify(client_id, version_id);
+                server_state.changes.notify(client_id);
                 Ok(rb.finish())
             }
             Ok((AddVersionResult::ExpectedParentVersion(parent_version_id), _)) => {
@@ -148,11 +148,9 @@ mod test {
         // the passed parent version ID, at least
         let new_version_id = resp.headers().get("X-Version-Id").unwrap();
         assert!(new_version_id != &version_id.to_string());
-        let new_version_id = Uuid::parse_str(new_version_id.to_str().unwrap()).unwrap();
 
         let event = changes.next().await.unwrap();
         assert_eq!(event.client_id, client_id);
-        assert_eq!(event.version_id, new_version_id);
 
         // Shapshot should be requested, since there is no existing snapshot
         let snapshot_request = resp.headers().get("X-Snapshot-Request").unwrap();
