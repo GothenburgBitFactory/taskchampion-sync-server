@@ -5,6 +5,7 @@
   - [Docker Compose](./usage/docker-compose.md)
   - [Docker Images](./usage/docker-images.md)
   - [Binaries](./usage/binaries.md)
+  - [Change Notifications](./usage/change-notifications.md)
 - [Integration](./integration.md)
   - [Pre-built Images](./integration/pre-built.md)
   - [Rust Crates](./integration/crates.md)
