@@ -9,13 +9,12 @@ use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
-use taskchampion_sync_server_core::{ClientId, VersionId};
+use taskchampion_sync_server_core::ClientId;
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ChangeEvent {
     pub(crate) client_id: ClientId,
-    pub(crate) version_id: VersionId,
 }
 
 #[derive(Clone, Default)]
@@ -35,11 +34,8 @@ impl ChangeNotifier {
         rx
     }
 
-    pub(crate) fn notify(&self, client_id: ClientId, version_id: VersionId) {
-        let event = ChangeEvent {
-            client_id,
-            version_id,
-        };
+    pub(crate) fn notify(&self, client_id: ClientId) {
+        let event = ChangeEvent { client_id };
         let mut subscribers = self
             .subscribers
             .lock()
@@ -90,13 +86,11 @@ mod test {
     async fn notifier_delivers_events_for_matching_client() {
         let notifier = ChangeNotifier::default();
         let client_id = Uuid::new_v4();
-        let version_id = Uuid::new_v4();
         let mut rx = notifier.subscribe(client_id);
 
-        notifier.notify(client_id, version_id);
+        notifier.notify(client_id);
         let event = rx.next().await.unwrap();
         assert_eq!(event.client_id, client_id);
-        assert_eq!(event.version_id, version_id);
     }
 
     #[actix_rt::test]

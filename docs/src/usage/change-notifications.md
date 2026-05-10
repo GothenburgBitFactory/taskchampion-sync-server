@@ -11,7 +11,7 @@ When `AddVersion` accepts a new version for that client, the stream emits a
 
 ```text
 event: version
-data: {"clientId":"...","versionId":"..."}
+data: {"clientId":"..."}
 ```
 
 This endpoint is only an invalidation signal. Clients should perform a normal
