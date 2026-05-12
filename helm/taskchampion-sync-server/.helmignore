@@ -1,5 +1,0 @@
-# Patterns to ignore when building the Helm chart
-.git
-.gitignore
-*.md
-examples/
