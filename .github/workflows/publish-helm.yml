@@ -33,5 +33,5 @@ jobs:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         with:
           charts_dir: helm
-          charts_repo_url: https://gothenburgbitfactory.org/taskchampion-sync-server/helm-charts
+          charts_repo_url: https://gothenburgbitfactory.org/taskchampion-sync-server/helm-chart
           pages_index_path: helm-charts
