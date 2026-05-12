@@ -20,6 +20,6 @@ entries:
     - https://github.com/GothenburgBitFactory/taskchampion-sync-server
     type: application
     urls:
-    - https://gothenburgbitfactory.org/taskchampion-sync-server/helm-charts/taskchampion-sync-server-0.1.0.tgz
+    - https://gothenburgbitfactory.org/taskchampion-sync-server/helm-chart/taskchampion-sync-server-0.1.0.tgz
     version: 0.1.0
 generated: "2026-05-11T20:04:28.410754-06:00"
