@@ -34,4 +34,4 @@ jobs:
         with:
           charts_dir: helm
           charts_repo_url: https://gothenburgbitfactory.org/taskchampion-sync-server/helm-chart
-          pages_index_path: helm-charts
+          pages_index_path: helm-chart
