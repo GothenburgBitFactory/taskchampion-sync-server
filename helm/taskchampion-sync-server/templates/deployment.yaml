@@ -30,6 +30,8 @@ spec:
         - name: postgres-init
           image: "{{ .Values.postgres.initContainer.image }}"
           imagePullPolicy: {{ .Values.postgres.initContainer.imagePullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
           env:
             - name: PGURI
               valueFrom:
@@ -86,6 +88,8 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
           env:
             {{- range $name, $value := .Values.env }}
             - name: {{ $name }}
