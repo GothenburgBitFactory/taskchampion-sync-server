@@ -38,3 +38,5 @@ jobs:
         run: |
           git checkout gh-pages
           mv -f index.yaml ./helm-chart/index.yaml 
+          git commit -m "Moving index.yaml"
+          git push
