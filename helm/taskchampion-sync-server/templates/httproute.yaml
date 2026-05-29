@@ -5,19 +5,53 @@ metadata:
   name: {{ include "taskchampion-sync-server.fullname" . }}
   labels:
     {{- include "taskchampion-sync-server.labels" . | nindent 4 }}
+  {{- with .Values.httpRoute.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   parentRefs:
+    {{- if .Values.httpRoute.parentRefs }}
+    {{- range .Values.httpRoute.parentRefs }}
+    - name: {{ .name }}
+      {{- if .namespace }}
+      namespace: {{ .namespace }}
+      {{- end }}
+      {{- if .sectionName }}
+      sectionName: {{ .sectionName }}
+      {{- end }}
+    {{- end }}
+    {{- else if .Values.httpRoute.gateway }}
     - name: {{ .Values.httpRoute.gateway }}
-  {{- if .Values.httpRoute.host }}
+    {{- end }}
+  {{- $hostnames := .Values.httpRoute.hostnames }}
+  {{- if and (not $hostnames) .Values.httpRoute.host }}
+  {{- $hostnames = list .Values.httpRoute.host }}
+  {{- end }}
+  {{- if $hostnames }}
   hostnames:
-    - {{ .Values.httpRoute.host }}
+    {{- range $hostnames }}
+    - {{ . | quote }}
+    {{- end }}
   {{- end }}
   rules:
+    {{- if .Values.httpRoute.rules }}
+    {{- range .Values.httpRoute.rules }}
+    - matches:
+        - path:
+            type: {{ .path.type | default "PathPrefix" }}
+            value: {{ .path.value | default "/" }}
+      backendRefs:
+        - name: {{ include "taskchampion-sync-server.fullname" $ }}
+          port: {{ .backendPort | default 8080 }}
+    {{- end }}
+    {{- else }}
     - matches:
         - path:
             type: PathPrefix
-            value: {{ .Values.httpRoute.path }}
+            value: {{ .Values.httpRoute.path | default "/" }}
       backendRefs:
         - name: {{ include "taskchampion-sync-server.fullname" . }}
-          port: {{ .Values.httpRoute.port }}
+          port: {{ .Values.httpRoute.port | default 8080 }}
+    {{- end }}
 {{- end }}
