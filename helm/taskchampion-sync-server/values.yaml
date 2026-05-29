@@ -91,7 +91,6 @@ replicas:
 # drops privileges via su-exec to the taskchampion user (uid 1092).
 securityContext:
   fsGroup: 100
-  allowPrivilegeEscalation: false
 
 # SQLite backend configuration (mutually exclusive with postgres)
 sqlite:
