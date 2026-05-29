@@ -38,7 +38,6 @@ ingress:
 # HTTPRoute configuration (Kubernetes Gateway API)
 httpRoute:
   enabled: false
-<<<<<<< HEAD
   annotations: {}
 
   # List of parent gateway references.
@@ -69,10 +68,6 @@ httpRoute:
   # Deprecated: use hostnames instead
   host: ""
   # Deprecated: use rules instead
-=======
-  gateway: ""
-  host: ""
->>>>>>> main
   path: "/"
   port: 8080
 
