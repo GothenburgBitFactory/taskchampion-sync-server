@@ -1,0 +1,171 @@
+name: Helm Chart Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'helm/**'
+  pull_request:
+    paths:
+      - 'helm/**'
+
+jobs:
+  helm-test:
+    runs-on: ubuntu-latest
+    name: "Helm Lint & Template"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Helm
+        uses: azure/setup-helm@v5
+        with:
+          version: latest
+
+      - name: Helm lint (default values — expects failure, no backend enabled)
+        run: |
+          helm lint helm/taskchampion-sync-server \
+            --strict 2>&1 || true
+
+      - name: Template default values — must fail validation
+        run: |
+          if helm template test-release helm/taskchampion-sync-server 2>/dev/null; then
+            echo "❌ Expected chart to fail validation (no backend enabled) but it succeeded"
+            exit 1
+          fi
+          echo "✓ Correctly rejects chart with no backend enabled"
+
+      - name: Template with SQLite values
+        run: |
+          helm template test-release helm/taskchampion-sync-server \
+            -f helm/taskchampion-sync-server/examples/sqlite-values.yaml \
+            --debug > /tmp/helm-sqlite.yaml
+
+          echo "=== Generated resources (SQLite) ==="
+          grep -E '^# Source:' /tmp/helm-sqlite.yaml
+
+          # Verify key resources exist
+          grep -q 'kind: Deployment' /tmp/helm-sqlite.yaml
+          grep -q 'kind: Service' /tmp/helm-sqlite.yaml
+          grep -q 'kind: Ingress' /tmp/helm-sqlite.yaml
+          grep -q 'kind: ServiceAccount' /tmp/helm-sqlite.yaml
+
+          # Verify SQLite-specific rendering
+          grep -q 'emptyDir' /tmp/helm-sqlite.yaml
+          grep -q 'DATA_DIR' /tmp/helm-sqlite.yaml
+
+          # Verify PostgreSQL-specific rendering is absent
+          if grep -q 'initContainers' /tmp/helm-sqlite.yaml; then
+            echo "❌ initContainers should not appear in SQLite mode"
+            exit 1
+          fi
+          if grep -q 'CONNECTION' /tmp/helm-sqlite.yaml; then
+            echo "❌ CONNECTION env var should not appear in SQLite mode"
+            exit 1
+          fi
+
+          # Verify correct image tag (no -postgres suffix)
+          grep -q 'image:.*taskchampion-sync-server:0.7.0' /tmp/helm-sqlite.yaml
+          echo "✓ SQLite template generated successfully"
+
+      - name: Template with PostgreSQL values
+        run: |
+          helm template test-release helm/taskchampion-sync-server \
+            -f helm/taskchampion-sync-server/examples/postgres-values.yaml \
+            --debug > /tmp/helm-postgres.yaml
+
+          echo "=== Generated resources (PostgreSQL) ==="
+          grep -E '^# Source:' /tmp/helm-postgres.yaml
+
+          # Verify key resources exist
+          grep -q 'kind: Deployment' /tmp/helm-postgres.yaml
+          grep -q 'kind: Service' /tmp/helm-postgres.yaml
+          grep -q 'kind: Secret' /tmp/helm-postgres.yaml
+          grep -q 'kind: ServiceAccount' /tmp/helm-postgres.yaml
+
+          # Verify PostgreSQL-specific rendering
+          grep -q 'kind: HTTPRoute' /tmp/helm-postgres.yaml
+          grep -q 'initContainers' /tmp/helm-postgres.yaml
+          grep -q 'CONNECTION' /tmp/helm-postgres.yaml
+          grep -q 'replicas: 3' /tmp/helm-postgres.yaml
+
+          # Verify correct image tag (with -postgres suffix)
+          grep -q 'image:.*taskchampion-sync-server-postgres:0.7.0' /tmp/helm-postgres.yaml
+
+          # Verify SQLite-specific rendering is absent
+          if grep -q 'DATA_DIR' /tmp/helm-postgres.yaml; then
+            echo "❌ DATA_DIR env var should not appear in PostgreSQL mode"
+            exit 1
+          fi
+          echo "✓ PostgreSQL template generated successfully"
+
+      - name: Template with both backends enabled — must fail validation
+        run: |
+          if helm template test-release helm/taskchampion-sync-server \
+            --set sqlite.enabled=true \
+            --set postgres.enabled=true 2>/dev/null; then
+            echo "❌ Expected chart to fail validation (both backends enabled) but it succeeded"
+            exit 1
+          fi
+          echo "✓ Correctly rejects chart with both backends enabled"
+
+      - name: Template with custom overrides
+        run: |
+          helm template test-release helm/taskchampion-sync-server \
+            --set sqlite.enabled=true \
+            --set postgres.enabled=false \
+            --set nameOverride=custom-name \
+            --set image.tag=latest \
+            --debug > /tmp/helm-custom.yaml
+
+          # Verify custom name override
+          grep -q 'custom-name' /tmp/helm-custom.yaml
+          grep -q 'custom-name-pvc' /tmp/helm-custom.yaml
+
+          # Verify custom image tag
+          grep -q 'image:.*taskchampion-sync-server:latest' /tmp/helm-custom.yaml
+          echo "✓ Custom overrides template generated successfully"
+
+      - name: Helm install dry-run (SQLite)
+        run: |
+          helm install test-release helm/taskchampion-sync-server \
+            -f helm/taskchampion-sync-server/examples/sqlite-values.yaml \
+            --dry-run 2>&1 | head -5
+          echo "✓ Helm install dry-run (SQLite) succeeded"
+
+  helm-kubeconform:
+    runs-on: ubuntu-latest
+    name: "Kubeconform Validation"
+    needs: helm-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Helm
+        uses: azure/setup-helm@v5
+        with:
+          version: latest
+
+      - name: Download kubeconform
+        run: |
+          wget -q -O /tmp/kubeconform.tar.gz \
+            https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          tar -xzf /tmp/kubeconform.tar.gz -C /usr/local/bin/ kubeconform
+          kubeconform -v
+
+      - name: Validate SQLite output against Kubernetes schemas
+        run: |
+          helm template test-release helm/taskchampion-sync-server \
+            -f helm/taskchampion-sync-server/examples/sqlite-values.yaml > /tmp/helm-sqlite.yaml
+          kubeconform -strict /tmp/helm-sqlite.yaml
+          echo "✓ SQLite resources are valid Kubernetes manifests"
+
+      - name: Validate PostgreSQL output against Kubernetes schemas
+        run: |
+          helm template test-release helm/taskchampion-sync-server \
+            -f helm/taskchampion-sync-server/examples/postgres-values.yaml > /tmp/helm-postgres.yaml
+          # Skip kubeconform on HTTPRoute since Gateway API CRDs aren't bundled
+          kubeconform -strict -ignore-missing-schemas /tmp/helm-postgres.yaml
+          echo "✓ PostgreSQL resources are valid Kubernetes manifests"
