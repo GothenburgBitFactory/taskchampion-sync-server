@@ -43,7 +43,7 @@ entries:
     urls:
     - https://github.com/GothenburgBitFactory/taskchampion-sync-server/releases/download/taskchampion-sync-server-0.1.1/taskchampion-sync-server-0.1.1.tgz
     version: 0.1.1
-      - apiVersion: v2
+  - apiVersion: v2
     appVersion: 0.7.0
     created: "2026-05-11T20:04:28.411646-06:00"
     description: A Helm chart for deploying TaskChampion Sync Server on Kubernetes
