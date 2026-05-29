@@ -1,0 +1,145 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "taskchampion-sync-server.fullname" . }}
+  labels:
+    {{- include "taskchampion-sync-server.labels" . | nindent 4 }}
+spec:
+  {{- if and (eq .Values.postgres.enabled true) .Values.replicas.enabled }}
+  replicas: {{ .Values.replicas.count }}
+  {{- else }}
+  replicas: 1
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "taskchampion-sync-server.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "taskchampion-sync-server.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "taskchampion-sync-server.fullname" . }}
+      {{- else if .Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      {{- if and .Values.postgres.enabled .Values.postgres.initContainer.enabled }}
+      initContainers:
+        - name: postgres-init
+          image: "{{ .Values.postgres.initContainer.image }}"
+          imagePullPolicy: {{ .Values.postgres.initContainer.imagePullPolicy }}
+          env:
+            - name: PGURI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "taskchampion-sync-server.postgres-secret-name" . }}
+                  key: connection
+            - name: SCHEMA_URL
+              value: {{ include "taskchampion-sync-server.schema-url" . | quote }}
+            {{- if .Values.clientIdSecret }}
+            - name: CLIENT_IDS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.clientIdSecret }}
+                  key: client-ids
+            {{- end }}
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              until pg_isready -d "$PGURI"; do
+                echo 'Waiting for PostgreSQL...'
+                sleep 2
+              done
+              echo "Downloading schema from ${SCHEMA_URL}..."
+              wget -qO /tmp/schema.sql "$SCHEMA_URL" || {
+                echo 'Failed to download schema - continuing with main container'
+                exit 0
+              }
+              psql "$PGURI" -f /tmp/schema.sql || {
+                echo 'Schema execution failed (SQL error) - continuing with main container'
+                exit 0
+              }
+              echo 'Schema executed successfully'
+              if [ -n "$CLIENT_IDS" ]; then
+                echo "Inserting client IDs..."
+                IFS=','
+                for client_id in $CLIENT_IDS; do
+                  client_id=$(echo "$client_id" | tr -d ' ')
+                  [ -z "$client_id" ] && continue
+                  psql "$PGURI" -c "INSERT INTO clients (client_id) VALUES ('$client_id') ON CONFLICT (client_id) DO NOTHING;" || {
+                    echo "Failed to insert client $client_id - continuing"
+                  }
+                done
+                unset IFS
+                echo "Client ID insertion complete"
+              fi
+      {{- end }}
+      containers:
+        - name: taskchampion-sync-server
+          {{- if eq .Values.postgres.enabled true }}
+          image: "{{ .Values.image.repository }}-postgres:{{ .Values.image.tag }}"
+          {{- else }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            {{- range $name, $value := .Values.env }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- if .Values.clientIdSecret }}
+            - name: CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.clientIdSecret }}
+                  key: client-ids
+            {{- end }}
+            {{- if eq .Values.sqlite.enabled true }}
+            - name: DATA_DIR
+              value: {{ .Values.sqlite.dataDir }}
+            {{- end }}
+            {{- if eq .Values.postgres.enabled true }}
+            - name: CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "taskchampion-sync-server.postgres-secret-name" . }}
+                  key: connection
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if eq .Values.sqlite.enabled true }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.sqlite.dataDir }}
+          {{- end }}
+      {{- if eq .Values.sqlite.enabled true }}
+      volumes:
+        {{- if .Values.sqlite.existingPV }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Values.sqlite.existingPV }}
+        {{- else if .Values.sqlite.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "taskchampion-sync-server.fullname" . }}-pvc
+        {{- else }}
+        - name: data
+          emptyDir:
+            {{- if .Values.sqlite.emptyDir.sizeLimit }}
+            sizeLimit: {{ .Values.sqlite.emptyDir.sizeLimit }}
+            {{- end }}
+            {{- if .Values.sqlite.emptyDir.medium }}
+            medium: {{ .Values.sqlite.emptyDir.medium }}
+            {{- end }}
+        {{- end }}
+      {{- end }}

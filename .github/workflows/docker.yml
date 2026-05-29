@@ -31,7 +31,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=match,pattern=\d.\d.\d,value=latest
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           file: "./Dockerfile-sqlite"
           platforms: linux/amd64,linux/arm64
@@ -61,7 +61,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=match,pattern=\d.\d.\d,value=latest
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           file: "./Dockerfile-postgres"
           platforms: linux/amd64,linux/arm64

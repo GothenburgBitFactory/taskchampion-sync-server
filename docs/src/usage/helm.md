@@ -5,7 +5,7 @@ A Helm chart is available for deploying taskchampion-sync-server on Kubernetes.
 ## Adding the Repository
 
 ```sh
-helm repo add taskchampion https://gothenburgbitfactory.org/taskchampion-sync-server/helm-charts
+helm repo add taskchampion https://gothenburgbitfactory.org/taskchampion-sync-server/helm-chart
 helm repo update
 ```
 
