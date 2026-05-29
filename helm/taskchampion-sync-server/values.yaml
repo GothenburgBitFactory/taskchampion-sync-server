@@ -38,8 +38,36 @@ ingress:
 # HTTPRoute configuration (Kubernetes Gateway API)
 httpRoute:
   enabled: false
+  annotations: {}
+
+  # List of parent gateway references.
+  # name is required; namespace and sectionName are optional.
+  parentRefs: []
+  # parentRefs:
+  #   - name: my-gateway
+  #     namespace: gateway-system  # optional — cross-namespace gateway reference
+  #     sectionName: https         # optional — targets a specific listener on the gateway
+
+  # List of hostnames the route applies to.
+  hostnames: []
+  # hostnames:
+  #   - tasks.example.com
+  #   - tasks.internal.example.com
+
+  # List of routing rules. Each rule matches a path and forwards to this chart's Service.
+  # When empty, falls back to the deprecated path/port fields below.
+  rules: []
+  # rules:
+  #   - path:
+  #       type: PathPrefix   # PathPrefix or Exact
+  #       value: /
+  #     backendPort: 8080
+
+  # Deprecated: use parentRefs instead
   gateway: ""
+  # Deprecated: use hostnames instead
   host: ""
+  # Deprecated: use rules instead
   path: "/"
   port: 8080
 
