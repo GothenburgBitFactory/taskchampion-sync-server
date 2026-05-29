@@ -33,4 +33,8 @@ jobs:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         with:
           charts_dir: helm
-          install_dir: helm-chart
+
+      - name: Move index.yaml to helm-chart folder
+        run: |
+          git checkout gh-pages
+          mv -f index.yaml ./helm-chart/index.yaml 
