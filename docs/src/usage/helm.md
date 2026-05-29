@@ -1,7 +1,6 @@
 # Helm
 
-A Helm chart (current version: **0.1.2**, app version: **0.7.0**) is available
-for deploying taskchampion-sync-server on Kubernetes.
+A Helm chart is available for deploying taskchampion-sync-server on Kubernetes.
 
 ## Adding the Repository
 

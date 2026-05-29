@@ -1,7 +1,5 @@
 # TaskChampion Sync Server Helm Chart
 
-Current chart version: **0.1.2** (app version: **0.7.0**)
-
 Deploy the [TaskChampion Sync Server](https://github.com/GothenburgBitFactory/taskchampion-sync-server) on Kubernetes.
 
 ## Prerequisites
