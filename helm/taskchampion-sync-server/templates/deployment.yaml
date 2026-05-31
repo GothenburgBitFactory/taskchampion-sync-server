@@ -32,6 +32,8 @@ spec:
           imagePullPolicy: {{ .Values.postgres.initContainer.imagePullPolicy }}
           securityContext:
             allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
           env:
             - name: PGURI
               valueFrom:
@@ -90,6 +92,16 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
             allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1092
+            readOnlyRootFilesystem: true
+          {{- if eq .Values.postgres.enabled true }}
+          command:
+            - /bin/taskchampion-sync-server-postgres
+          {{- else }}
+          command:
+            - /bin/taskchampion-sync-server
+          {{- end }}
           env:
             {{- range $name, $value := .Values.env }}
             - name: {{ $name }}
@@ -117,6 +129,18 @@ spec:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
