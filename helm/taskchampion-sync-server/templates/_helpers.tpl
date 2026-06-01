@@ -23,6 +23,7 @@ taskchampion-sync-server helpers
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 app.kubernetes.io/name: {{ include "taskchampion-sync-server.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: server
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
@@ -32,13 +33,6 @@ app.kubernetes.io/name: {{ include "taskchampion-sync-server.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
-{{- define "taskchampion-sync-server.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "taskchampion-sync-server.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
-{{- end }}
 
 {{- define "taskchampion-sync-server.postgres-connection" -}}
   {{- $host := .Values.postgres.host -}}

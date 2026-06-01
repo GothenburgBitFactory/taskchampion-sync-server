@@ -16,10 +16,19 @@ clientIdSecret: ""
 
 # Environment variables passed directly to the container
 # NOTE: DATA_DIR and CONNECTION are set automatically based on backend
+# To add secret/configMap references, use valueFrom:
+#   - name: MY_SECRET_VAR
+#     valueFrom:
+#       secretKeyRef:
+#         name: my-secret
+#         key: my-key
 env:
-  RUST_LOG: info
-  LISTEN: "0.0.0.0:8080"
-  CREATE_CLIENTS: "true"
+  - name: RUST_LOG
+    value: info
+  - name: LISTEN
+    value: "0.0.0.0:8080"
+  - name: CREATE_CLIENTS
+    value: "true"
 
 # Service configuration
 service:
@@ -28,6 +37,14 @@ service:
   targetPort: 8080
 
 # Ingress configuration
+# Each host can be a string (simple) or a map with path rules:
+#   hosts:
+#     - host: app.example.com
+#       paths:
+#         - path: /
+#           pathType: Prefix
+#         - path: /api
+#           pathType: Exact
 ingress:
   enabled: false
   className: ""
@@ -106,12 +123,6 @@ sqlite:
     accessMode: ReadWriteOnce
     storageClass: ""
     existingClaim: ""
-
-# Service account configuration
-serviceAccount:
-  create: true  # Default: automatically create service account
-  name: ""      # Optional: use existing service account
-  annotations: {}
 
 # PostgreSQL configuration
 postgres:

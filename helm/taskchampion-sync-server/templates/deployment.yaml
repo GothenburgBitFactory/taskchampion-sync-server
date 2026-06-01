@@ -18,10 +18,10 @@ spec:
       labels:
         {{- include "taskchampion-sync-server.selectorLabels" . | nindent 8 }}
     spec:
-      {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "taskchampion-sync-server.fullname" . }}
-      {{- else if .Values.serviceAccount.name }}
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       securityContext:
         {{- toYaml .Values.securityContext | nindent 8 }}
@@ -33,7 +33,7 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
-            runAsUser: 1000
+            runAsUser: 999
           env:
             - name: PGURI
               valueFrom:
@@ -103,10 +103,7 @@ spec:
             - /bin/taskchampion-sync-server
           {{- end }}
           env:
-            {{- range $name, $value := .Values.env }}
-            - name: {{ $name }}
-              value: {{ $value | quote }}
-            {{- end }}
+            {{- toYaml .Values.env | nindent 12 }}
             {{- if .Values.clientIdSecret }}
             - name: CLIENT_ID
               valueFrom:
