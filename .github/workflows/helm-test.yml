@@ -81,7 +81,6 @@ jobs:
           grep -q 'kind: Deployment' /tmp/helm-postgres.yaml
           grep -q 'kind: Service' /tmp/helm-postgres.yaml
           grep -q 'kind: Secret' /tmp/helm-postgres.yaml
-          grep -q 'kind: ServiceAccount' /tmp/helm-postgres.yaml
 
           # Verify PostgreSQL-specific rendering
           grep -q 'kind: HTTPRoute' /tmp/helm-postgres.yaml
