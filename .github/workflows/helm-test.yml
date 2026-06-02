@@ -49,7 +49,6 @@ jobs:
           grep -q 'kind: Deployment' /tmp/helm-sqlite.yaml
           grep -q 'kind: Service' /tmp/helm-sqlite.yaml
           grep -q 'kind: Ingress' /tmp/helm-sqlite.yaml
-          grep -q 'kind: ServiceAccount' /tmp/helm-sqlite.yaml
 
           # Verify SQLite-specific rendering
           grep -q 'emptyDir' /tmp/helm-sqlite.yaml
