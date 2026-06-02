@@ -92,6 +92,15 @@ pub(crate) async fn service(
                     .await
                     .map_err(failure_to_ise)?;
                 txn.commit().await.map_err(failure_to_ise)?;
+                // If the client presented a non-nil parent, their chain is from
+                // a previous server. Return 409 with NIL_VERSION_ID so the
+                // client library knows to push from scratch, ensuring the chain
+                // is rooted at nil on this server.
+                if parent_version_id != NIL_VERSION_ID {
+                    let mut rb = HttpResponse::Conflict();
+                    rb.append_header((PARENT_VERSION_ID_HEADER, NIL_VERSION_ID.to_string()));
+                    return Ok(rb.finish());
+                }
                 continue;
             }
             Err(e) => Err(server_error_to_actix(e)),
@@ -154,9 +163,49 @@ mod test {
     }
 
     #[actix_rt::test]
-    async fn test_auto_add_client() {
+    async fn test_auto_add_client_nil_parent() {
+        // When auto-creating a client and the parent is nil, the version is
+        // accepted and the chain is correctly rooted.
         let client_id = Uuid::new_v4();
-        let version_id = Uuid::new_v4();
+        let server = WebServer::new(
+            ServerConfig::default(),
+            WebConfig::default(),
+            InMemoryStorage::new(),
+        );
+        let app = App::new().configure(|sc| server.config(sc));
+        let app = test::init_service(app).await;
+
+        let uri = format!("/v1/client/add-version/{}", Uuid::nil());
+        let req = test::TestRequest::post()
+            .uri(&uri)
+            .append_header((
+                "Content-Type",
+                "application/vnd.taskchampion.history-segment",
+            ))
+            .append_header((CLIENT_ID_HEADER, client_id.to_string()))
+            .set_payload(b"abcd".to_vec())
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let snapshot_request = resp.headers().get("X-Snapshot-Request").unwrap();
+        assert_eq!(snapshot_request, "urgency=high");
+
+        // Check that the client was created with a rooted chain
+        {
+            let mut txn = server.server_state.server.txn(client_id).await.unwrap();
+            let client = txn.get_client().await.unwrap().unwrap();
+            assert_ne!(client.latest_version_id, Uuid::nil());
+            assert_eq!(client.snapshot, None);
+        }
+    }
+
+    #[actix_rt::test]
+    async fn test_auto_add_client_non_nil_parent_rejected() {
+        // When auto-creating a client and the parent is non-nil (stale chain
+        // from a previous server), return 409 with NIL_VERSION_ID so the
+        // client knows to push from scratch.
+        let client_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4();
         let server = WebServer::new(
             ServerConfig::default(),
@@ -177,26 +226,17 @@ mod test {
             .set_payload(b"abcd".to_vec())
             .to_request();
         let resp = test::call_service(&app, req).await;
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), StatusCode::CONFLICT);
 
-        // the returned version ID is random, but let's check that it's not
-        // the passed parent version ID, at least
-        let new_version_id = resp.headers().get("X-Version-Id").unwrap();
-        let new_version_id = Uuid::parse_str(new_version_id.to_str().unwrap()).unwrap();
-        assert!(new_version_id != version_id);
+        // The expected parent is nil, telling the client to start fresh
+        let expected_parent = resp.headers().get("X-Parent-Version-Id").unwrap();
+        assert_eq!(expected_parent, &Uuid::nil().to_string());
 
-        // Shapshot should be requested, since there is no existing snapshot
-        let snapshot_request = resp.headers().get("X-Snapshot-Request").unwrap();
-        assert_eq!(snapshot_request, "urgency=high");
-
-        assert_eq!(resp.headers().get("X-Parent-Version-Id"), None);
-
-        // Check that the client really was created
+        // The client row should have been created (with latest = nil)
         {
             let mut txn = server.server_state.server.txn(client_id).await.unwrap();
             let client = txn.get_client().await.unwrap().unwrap();
-            assert_eq!(client.latest_version_id, new_version_id);
-            assert_eq!(client.snapshot, None);
+            assert_eq!(client.latest_version_id, Uuid::nil());
         }
     }
 

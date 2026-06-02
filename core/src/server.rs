@@ -117,6 +117,7 @@ impl Server {
         // If a version with parentVersionId equal to the requested parentVersionId exists, it is
         // returned.
         if let Some(version) = txn.get_version_by_parent(parent_version_id).await? {
+            txn.commit().await?;
             return Ok(GetVersionResult::Success {
                 version_id: version.version_id,
                 parent_version_id: version.parent_version_id,
@@ -130,15 +131,15 @@ impl Server {
         // AddVersion will succeed if either
         //  - the requested parent version is the latest version; or
         //  - there is no latest version, meaning there are no versions stored for this client
-        Ok(
-            if client.latest_version_id == parent_version_id
-                || client.latest_version_id == NIL_VERSION_ID
-            {
-                GetVersionResult::NotFound
-            } else {
-                GetVersionResult::Gone
-            },
-        )
+        let result = if client.latest_version_id == parent_version_id
+            || client.latest_version_id == NIL_VERSION_ID
+        {
+            GetVersionResult::NotFound
+        } else {
+            GetVersionResult::Gone
+        };
+        txn.commit().await?;
+        Ok(result)
     }
 
     /// Implementation of the AddVersion protocol transaction
@@ -158,6 +159,7 @@ impl Server {
             && parent_version_id != client.latest_version_id
         {
             log::debug!("add_version request rejected: mismatched latest_version_id");
+            txn.commit().await?;
             return Ok((
                 AddVersionResult::ExpectedParentVersion(client.latest_version_id),
                 SnapshotUrgency::None,
@@ -168,9 +170,18 @@ impl Server {
         let version_id = Uuid::new_v4();
         log::debug!("add_version request accepted: new version_id: {version_id}");
 
-        // update the DB
-        txn.add_version(version_id, parent_version_id, history_segment)
-            .await?;
+        // update the DB; a Some return means a concurrent transaction won the CAS race
+        if let Some(current_latest) = txn
+            .add_version(version_id, parent_version_id, history_segment)
+            .await?
+        {
+            log::debug!("add_version CAS conflict: current latest is {current_latest}");
+            txn.commit().await?;
+            return Ok((
+                AddVersionResult::ExpectedParentVersion(current_latest),
+                SnapshotUrgency::None,
+            ));
+        }
         txn.commit().await?;
 
         // calculate the urgency
@@ -212,6 +223,7 @@ impl Server {
         let last_snapshot = client.snapshot.map(|snap| snap.version_id);
         if Some(version_id) == last_snapshot {
             log::debug!("rejecting snapshot for version {version_id}: already exists");
+            txn.commit().await?;
             return Ok(());
         }
 
@@ -229,6 +241,7 @@ impl Server {
             if Some(vid) == last_snapshot {
                 // the new snapshot is older than the last snapshot, so ignore it
                 log::debug!("rejecting snapshot for version {version_id}: newer snapshot already exists or no such version");
+                txn.commit().await?;
                 return Ok(());
             }
 
@@ -236,6 +249,7 @@ impl Server {
             if search_len <= 0 || vid == NIL_VERSION_ID {
                 // this should not happen in normal operation, so warn about it
                 log::warn!("rejecting snapshot for version {version_id}: version is too old or no such version");
+                txn.commit().await?;
                 return Ok(());
             }
 
@@ -246,6 +260,7 @@ impl Server {
                 // this version does not exist; "this should not happen" but if it does,
                 // we don't need a snapshot earlier than the missing version.
                 log::warn!("rejecting snapshot for version {version_id}: newer versions have already been deleted");
+                txn.commit().await?;
                 return Ok(());
             }
         }
@@ -272,13 +287,15 @@ impl Server {
         let mut txn = self.txn(client_id).await?;
         let client = txn.get_client().await?.ok_or(ServerError::NoSuchClient)?;
 
-        Ok(if let Some(snap) = client.snapshot {
+        let result = if let Some(snap) = client.snapshot {
             txn.get_snapshot_data(snap.version_id)
                 .await?
                 .map(|data| (snap.version_id, data))
         } else {
             None
-        })
+        };
+        txn.commit().await?;
+        Ok(result)
     }
 
     /// Convenience method to get a transaction for the embedded storage.
