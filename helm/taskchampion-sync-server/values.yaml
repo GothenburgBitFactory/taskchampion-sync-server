@@ -9,6 +9,9 @@ image:
   tag: "0.7.0"
   pullPolicy: IfNotPresent
   pullSecrets: []
+  # pullSecrets expects a list of objects with a "name" key:
+  # pullSecrets:
+  #   - name: my-registry-cred
 
 # Existing secret containing client IDs (comma-separated UUIDs)
 # Expected key: client-ids
