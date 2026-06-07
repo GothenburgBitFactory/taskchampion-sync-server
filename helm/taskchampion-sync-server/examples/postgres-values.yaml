@@ -23,7 +23,7 @@ replicas:
 
 image:
   pullSecrets:
-    - my-registry-secret
+    - name: my-registry-secret
 
 httpRoute:
   enabled: true
