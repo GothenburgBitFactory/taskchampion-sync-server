@@ -13,31 +13,31 @@ jobs:
     name: "Check & Clippy"
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Cache cargo registry
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo build
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
-      - uses: actions-rs/toolchain@v1
+      - uses: actions-rs/toolchain@b2417cde72dcf67f306c0ae8e0828a81bf0b189f # v1.0.6
         with:
           toolchain: "stable"
           override: true
           components: clippy
 
-      - uses: actions-rs/cargo@v1.0.3
+      - uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b # v1.0.1
         with:
           command: check
 
-      - uses: actions-rs/clippy-check@v1
+      - uses: actions-rs/clippy-check@b5b5f21f4797c02da247df37026fcd0a5024aa4d # v1.0.7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features --no-deps -- -D warnings
@@ -48,46 +48,46 @@ jobs:
     name: "Rustdoc"
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Cache cargo registry
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
-      - uses: actions-rs/toolchain@v1
+      - uses: actions-rs/toolchain@b2417cde72dcf67f306c0ae8e0828a81bf0b189f # v1.0.6
         with:
           toolchain: nightly
           override: true
           minimal: true
 
       - name: taskchampion-sync-server
-        uses: actions-rs/cargo@v1.0.3
+        uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b # v1.0.1
         with:
           command: rustdoc
           args: -p taskchampion-sync-server --bin taskchampion-sync-server --all-features -- -Z unstable-options  --check -Dwarnings
 
       - name: taskchampion-sync-server-postgres
-        uses: actions-rs/cargo@v1.0.3
+        uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b # v1.0.1
         with:
           command: rustdoc
           args: -p taskchampion-sync-server --bin taskchampion-sync-server-postgres --all-features -- -Z unstable-options  --check -Dwarnings
 
       - name: taskchampion-sync-server-core
-        uses: actions-rs/cargo@v1.0.3
+        uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b # v1.0.1
         with:
           command: rustdoc
           args: -p taskchampion-sync-server-core --all-features -- -Z unstable-options  --check -Dwarnings
 
       - name: taskchampion-sync-server-storage-sqlite
-        uses: actions-rs/cargo@v1.0.3
+        uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b # v1.0.1
         with:
           command: rustdoc
           args: -p taskchampion-sync-server-storage-sqlite --all-features -- -Z unstable-options  --check -Dwarnings
 
       - name: taskchampion-sync-server-storage-postgres
-        uses: actions-rs/cargo@v1.0.3
+        uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b # v1.0.1
         with:
           command: rustdoc
           args: -p taskchampion-sync-server-storage-postgres --all-features -- -Z unstable-options  --check -Dwarnings
@@ -96,16 +96,16 @@ jobs:
     runs-on: ubuntu-latest
     name: "Formatting"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - uses: actions-rs/toolchain@v1
+      - uses: actions-rs/toolchain@b2417cde72dcf67f306c0ae8e0828a81bf0b189f # v1.0.6
         with:
           profile: minimal
           components: rustfmt
           toolchain: stable
           override: true
 
-      - uses: actions-rs/cargo@v1.0.3
+      - uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b # v1.0.1
         with:
           command: fmt
           args: --all -- --check
@@ -114,8 +114,8 @@ jobs:
     runs-on: ubuntu-latest
     name: "Cargo Semver Checks"
     steps:
-      - uses: actions/checkout@v6
-      - uses: obi1kenobi/cargo-semver-checks-action@v2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: obi1kenobi/cargo-semver-checks-action@5b298c9520f7096a4683c0bd981a7ac5a7e249ae # v2.8
         with:
           # exclude the binary package from semver checks, since it is not published as a crate.
           exclude: taskchampion-sync-server
@@ -125,10 +125,10 @@ jobs:
     name: "mdBook Documentation"
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Setup mdBook
-        uses: peaceiris/actions-mdbook@v2
+        uses: peaceiris/actions-mdbook@ee69d230fe19748b7abf22df32acaa93833fad08 # v2.0.0
         with:
           # if this changes, change it in .github/workflows/publish-docs.yml as well
           mdbook-version: '0.4.48'
