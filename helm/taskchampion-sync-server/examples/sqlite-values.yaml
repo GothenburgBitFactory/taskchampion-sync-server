@@ -12,9 +12,12 @@ postgres:
 clientIdSecret: "taskchampion-client-ids"
 
 env:
-  RUST_LOG: info
-  LISTEN: "0.0.0.0:8080"
-  CREATE_CLIENTS: "false"
+  - name: RUST_LOG
+    value: info
+  - name: LISTEN
+    value: "0.0.0.0:8080"
+  - name: CREATE_CLIENTS
+    value: "false"
 
 ingress:
   enabled: true

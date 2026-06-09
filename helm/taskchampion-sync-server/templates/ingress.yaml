@@ -18,7 +18,10 @@ spec:
     {{- toYaml .Values.ingress.tls | nindent 4 }}
   {{- end }}
   rules:
+    {{- $svcName := include "taskchampion-sync-server.fullname" . -}}
+    {{- $svcPort := $.Values.service.port -}}
     {{- range .Values.ingress.hosts }}
+    {{- if kindIs "string" . }}
     - host: {{ . | quote }}
       http:
         paths:
@@ -26,8 +29,30 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "taskchampion-sync-server.fullname" $ }}
+                name: {{ $svcName }}
                 port:
-                  number: {{ $.Values.service.port }}
+                  number: {{ $svcPort }}
+    {{- else }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path | default "/" | quote }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ $svcName }}
+                port:
+                  number: {{ $svcPort }}
+          {{- else }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $svcName }}
+                port:
+                  number: {{ $svcPort }}
+          {{- end }}
+    {{- end }}
     {{- end }}
 {{- end }}

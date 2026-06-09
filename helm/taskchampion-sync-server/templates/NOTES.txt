@@ -1,0 +1,46 @@
+Thank you for installing {{ .Chart.Name }} — version {{ .Chart.Version }} (app: {{ .Chart.AppVersion }}).
+
+## Storage Backend
+
+{{- if eq .Values.sqlite.enabled true }}
+**SQLite** — Data is stored at `{{ .Values.sqlite.dataDir }}`.
+{{- if .Values.sqlite.persistence.enabled }}
+  PersistentVolumeClaim: `{{ include "taskchampion-sync-server.fullname" . }}-pvc`
+{{- else if .Values.sqlite.existingPV }}
+  Using existing PVC: `{{ .Values.sqlite.existingPV }}`
+{{- else }}
+  Using an emptyDir volume (ephemeral — data is lost on pod restart).
+  Set `sqlite.persistence.enabled=true` for persistent storage.
+{{- end }}
+{{- end }}
+
+{{- if eq .Values.postgres.enabled true }}
+**PostgreSQL** — Connection URI stored in Secret `{{ include "taskchampion-sync-server.postgres-secret-name" . }}`.
+  Host: {{ .Values.postgres.host }}:{{ .Values.postgres.port }}
+  Database: {{ .Values.postgres.database }}
+{{- end }}
+
+## Verify the Deployment
+
+  kubectl get pods -l {{ include "taskchampion-sync-server.selectorLabels" . | replace ": " "=" | replace "\n" "," | trimSuffix "," }}
+
+## Check Pod Logs
+
+  kubectl logs -l {{ include "taskchampion-sync-server.selectorLabels" . | replace ": " "=" | replace "\n" "," | trimSuffix "," }}
+
+## Test the API
+
+  kubectl port-forward svc/{{ include "taskchampion-sync-server.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+  curl http://localhost:{{ .Values.service.port }}/
+
+## View Connection Secret (PostgreSQL only)
+
+{{- if eq .Values.postgres.enabled true }}
+  kubectl get secret {{ include "taskchampion-sync-server.postgres-secret-name" . }} -o jsonpath="{.data.connection}" | base64 -d
+{{- end }}
+
+## Configuration
+
+For full configuration options, see:
+
+  https://github.com/GothenburgBitFactory/taskchampion-sync-server

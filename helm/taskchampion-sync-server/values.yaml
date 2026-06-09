@@ -9,6 +9,9 @@ image:
   tag: "0.7.0"
   pullPolicy: IfNotPresent
   pullSecrets: []
+  # pullSecrets expects a list of objects with a "name" key:
+  # pullSecrets:
+  #   - name: my-registry-cred
 
 # Existing secret containing client IDs (comma-separated UUIDs)
 # Expected key: client-ids
@@ -16,10 +19,19 @@ clientIdSecret: ""
 
 # Environment variables passed directly to the container
 # NOTE: DATA_DIR and CONNECTION are set automatically based on backend
+# To add secret/configMap references, use valueFrom:
+#   - name: MY_SECRET_VAR
+#     valueFrom:
+#       secretKeyRef:
+#         name: my-secret
+#         key: my-key
 env:
-  RUST_LOG: info
-  LISTEN: "0.0.0.0:8080"
-  CREATE_CLIENTS: "true"
+  - name: RUST_LOG
+    value: info
+  - name: LISTEN
+    value: "0.0.0.0:8080"
+  - name: CREATE_CLIENTS
+    value: "true"
 
 # Service configuration
 service:
@@ -28,6 +40,14 @@ service:
   targetPort: 8080
 
 # Ingress configuration
+# Each host can be a string (simple) or a map with path rules:
+#   hosts:
+#     - host: app.example.com
+#       paths:
+#         - path: /
+#           pathType: Prefix
+#         - path: /api
+#           pathType: Exact
 ingress:
   enabled: false
   className: ""
@@ -71,15 +91,6 @@ httpRoute:
   path: "/"
   port: 8080
 
-# Resource limits and requests
-resources: {}
-  # limits:
-  #   memory: 128Mi
-  #   cpu: 100m
-  # requests:
-  #   memory: 64Mi
-  #   cpu: 50m
-
 # Replica configuration (only applies when postgres is enabled)
 replicas:
   enabled: false
@@ -96,6 +107,15 @@ securityContext:
 sqlite:
   enabled: false
   dataDir: /var/lib/taskchampion-sync-server/data
+  # Resource limits and requests
+  resources:
+    limits:
+      memory: 25Mi
+      cpu: 100m
+    requests:
+      # 5Mi is sufficient for the SQLite image
+      memory: 5Mi
+      cpu: 10m
   existingPV: ""
   emptyDir:
     sizeLimit: ""
@@ -106,12 +126,6 @@ sqlite:
     accessMode: ReadWriteOnce
     storageClass: ""
     existingClaim: ""
-
-# Service account configuration
-serviceAccount:
-  create: true  # Default: automatically create service account
-  name: ""      # Optional: use existing service account
-  annotations: {}
 
 # PostgreSQL configuration
 postgres:
@@ -134,3 +148,12 @@ postgres:
     # Override the schema URL. Defaults to the official schema for this chart's appVersion.
     # e.g. https://raw.githubusercontent.com/GothenburgBitFactory/taskchampion-sync-server/v0.7.0/postgres/schema.sql
     schemaUrl: ""
+  # Resource limits and requests
+  resources:
+    limits:
+      memory: 100Mi
+      cpu: 100m
+    requests:
+      # 20Mi is the minimum for the Postgres image
+      memory: 20Mi
+      cpu: 10m

@@ -10,9 +10,12 @@ postgres:
 clientIdSecret: "taskchampion-client-ids"
 
 env:
-  RUST_LOG: debug
-  LISTEN: "0.0.0.0:8080"
-  CREATE_CLIENTS: "false"
+  - name: RUST_LOG
+    value: debug
+  - name: LISTEN
+    value: "0.0.0.0:8080"
+  - name: CREATE_CLIENTS
+    value: "false"
 
 replicas:
   enabled: true
@@ -20,7 +23,7 @@ replicas:
 
 image:
   pullSecrets:
-    - my-registry-secret
+    - name: my-registry-secret
 
 httpRoute:
   enabled: true

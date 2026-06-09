@@ -1,3 +1,10 @@
+{{- /* Validate imagePullSecrets entries are objects (not plain strings) */ -}}
+{{- range $i, $secret := .Values.image.pullSecrets -}}
+  {{- if not (kindIs "map" $secret) -}}
+    {{- fail (printf "ERROR: image.pullSecrets[%d] is a string (%q). Each entry must be an object with a 'name' key, e.g.\n  image:\n    pullSecrets:\n      - name: %s" $i $secret $secret) -}}
+  {{- end -}}
+{{- end -}}
+
 {{- if and (eq .Values.sqlite.enabled false) (eq .Values.postgres.enabled false) -}}
 {{- fail "ERROR: Exactly one storage backend must be enabled. Either sqlite.enabled or postgres.enabled must be true." -}}
 {{- end -}}

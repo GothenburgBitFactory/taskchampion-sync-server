@@ -18,10 +18,10 @@ spec:
       labels:
         {{- include "taskchampion-sync-server.selectorLabels" . | nindent 8 }}
     spec:
-      {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "taskchampion-sync-server.fullname" . }}
-      {{- else if .Values.serviceAccount.name }}
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       securityContext:
         {{- toYaml .Values.securityContext | nindent 8 }}
@@ -32,6 +32,8 @@ spec:
           imagePullPolicy: {{ .Values.postgres.initContainer.imagePullPolicy }}
           securityContext:
             allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 999
           env:
             - name: PGURI
               valueFrom:
@@ -90,11 +92,18 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
             allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1092
+            readOnlyRootFilesystem: true
+          {{- if eq .Values.postgres.enabled true }}
+          command:
+            - /bin/taskchampion-sync-server-postgres
+          {{- else }}
+          command:
+            - /bin/taskchampion-sync-server
+          {{- end }}
           env:
-            {{- range $name, $value := .Values.env }}
-            - name: {{ $name }}
-              value: {{ $value | quote }}
-            {{- end }}
+            {{- toYaml .Values.env | nindent 12 }}
             {{- if .Values.clientIdSecret }}
             - name: CLIENT_ID
               valueFrom:
@@ -117,9 +126,24 @@ spec:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
-          {{- with .Values.resources }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          {{- if eq .Values.postgres.enabled true }}
           resources:
-            {{- toYaml . | nindent 12 }}
+            {{- toYaml .Values.postgres.resources | nindent 12 }}
+          {{- else }}
+          resources:
+            {{- toYaml .Values.sqlite.resources | nindent 12 }}
           {{- end }}
           {{- if eq .Values.sqlite.enabled true }}
           volumeMounts:
