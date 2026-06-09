@@ -91,15 +91,6 @@ httpRoute:
   path: "/"
   port: 8080
 
-# Resource limits and requests
-resources:
-  limits:
-    memory: 25Mi
-    cpu: 100m
-  requests:
-    memory: 5Mi
-    cpu: 10m
-
 # Replica configuration (only applies when postgres is enabled)
 replicas:
   enabled: false
@@ -116,6 +107,15 @@ securityContext:
 sqlite:
   enabled: false
   dataDir: /var/lib/taskchampion-sync-server/data
+  # Resource limits and requests
+  resources:
+    limits:
+      memory: 25Mi
+      cpu: 100m
+    requests:
+      # 5Mi is sufficient for the SQLite image
+      memory: 5Mi
+      cpu: 10m
   existingPV: ""
   emptyDir:
     sizeLimit: ""
@@ -148,3 +148,12 @@ postgres:
     # Override the schema URL. Defaults to the official schema for this chart's appVersion.
     # e.g. https://raw.githubusercontent.com/GothenburgBitFactory/taskchampion-sync-server/v0.7.0/postgres/schema.sql
     schemaUrl: ""
+  # Resource limits and requests
+  resources:
+    limits:
+      memory: 100Mi
+      cpu: 100m
+    requests:
+      # 20Mi is the minimum for the Postgres image
+      memory: 20Mi
+      cpu: 10m

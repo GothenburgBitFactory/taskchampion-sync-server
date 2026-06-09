@@ -138,9 +138,12 @@ spec:
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
-          {{- with .Values.resources }}
+          {{- if eq .Values.postgres.enabled true }}
           resources:
-            {{- toYaml . | nindent 12 }}
+            {{- toYaml .Values.postgres.resources | nindent 12 }}
+          {{- else }}
+          resources:
+            {{- toYaml .Values.sqlite.resources | nindent 12 }}
           {{- end }}
           {{- if eq .Values.sqlite.enabled true }}
           volumeMounts:
