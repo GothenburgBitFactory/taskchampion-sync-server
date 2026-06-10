@@ -96,6 +96,16 @@ replicas:
   enabled: false
   count: 1
 
+# ServiceAccount configuration
+# The app does not access the Kubernetes API, so no RBAC permissions are needed.
+# A dedicated ServiceAccount is created to give the pod a stable identity
+# for network policies, pod security, or future RBAC.
+serviceAccount:
+  # create specifies whether a ServiceAccount should be created
+  create: true
+  # name sets the ServiceAccount name
+  name: taskchampion-sync-server
+
 # Security context for the pod
 # NOTE: runAsUser and runAsGroup are intentionally unset.
 # The Docker entrypoint requires root to chown the data directory and then
