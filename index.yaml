@@ -3,6 +3,27 @@ entries:
   taskchampion-sync-server:
   - apiVersion: v2
     appVersion: 0.7.0
+    created: "2026-06-10T03:32:20.306854856Z"
+    description: A Helm chart for deploying TaskChampion Sync Server on Kubernetes
+    digest: 9dc290e355eca655d76b83c26ae44e4092a29071f9249ae3b593fbe71577cf87
+    home: https://github.com/GothenburgBitFactory/taskchampion-sync-server
+    keywords:
+    - taskchampion
+    - taskwarrior
+    - sync
+    - task-management
+    maintainers:
+    - email: jansendfuller@mailfence.com
+      name: Jansen Fuller
+    name: taskchampion-sync-server
+    sources:
+    - https://github.com/GothenburgBitFactory/taskchampion-sync-server
+    type: application
+    urls:
+    - https://github.com/GothenburgBitFactory/taskchampion-sync-server/releases/download/taskchampion-sync-server-0.2.1/taskchampion-sync-server-0.2.1.tgz
+    version: 0.2.1
+  - apiVersion: v2
+    appVersion: 0.7.0
     created: "2026-06-09T23:42:01.00930051Z"
     description: A Helm chart for deploying TaskChampion Sync Server on Kubernetes
     digest: 986094a6f5b5c139c4f880cd6d7d9a03fc4e31a04e433e42713798cb605d798e
@@ -85,4 +106,4 @@ entries:
     urls:
     - https://gothenburgbitfactory.org/taskchampion-sync-server/helm-chart/taskchampion-sync-server-0.1.0.tgz
     version: 0.1.0
-generated: "2026-06-09T23:42:01.009318176Z"
+generated: "2026-06-10T03:32:20.306872312Z"
