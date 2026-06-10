@@ -23,6 +23,9 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "taskchampion-sync-server.serviceAccountName" . }}
+      {{- end }}
       securityContext:
         {{- toYaml .Values.securityContext | nindent 8 }}
       {{- if and .Values.postgres.enabled .Values.postgres.initContainer.enabled }}
