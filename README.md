@@ -27,8 +27,8 @@ The repository is comprised of four crates:
 ## Images
 
 This package builds two docker images:
- - `ghcr.io/gothenburgbitfactory/taskchampion-sync-server-postgres`
- - `ghcr.io/gothenburgbitfactory/taskchampion-sync-server-sqlite`
+ - [`ghcr.io/gothenburgbitfactory/taskchampion-sync-server-postgres`](ghcr.io/gothenburgbitfactory/taskchampion-sync-server-postgres)}
+ - [`ghcr.io/gothenburgbitfactory/taskchampion-sync-server-sqlite`](`ghcr.io/gothenburgbitfactory/taskchampion-sync-server-sqlite`)
 
 These are tagged with as follows:
  - With the full version, with tags like `:0.7.1`
