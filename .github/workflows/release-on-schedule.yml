@@ -8,5 +8,5 @@ on:
 
 jobs:
   release:
-    uses: GothenburgBitFactory/taskchampion-sync-server/.github/workflows/publish-docker-image.yaml
+    uses: ./.github/workflows/publish-docker-image.yaml
     secrets: inherit
