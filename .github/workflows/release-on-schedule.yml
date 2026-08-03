@@ -1,0 +1,12 @@
+name: Release (Monthly)
+
+on:
+  workflow_dispatch:
+  schedule:
+  # On the 15th of the month
+  - cron: '30 5 15 * *'
+
+jobs:
+  release:
+    uses: GothenburgBitFactory/taskchampion-sync-server/.github/workflows/publish-docker-image.yaml
+    secrets: inherit

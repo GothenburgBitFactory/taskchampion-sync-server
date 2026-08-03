@@ -1,9 +1,7 @@
-name: Build Docker
+name: Build Docker Images
 
 on:
-  push:
-    tags:
-      - '*'
+  workflow_call:
 
 jobs:
   sqlite:

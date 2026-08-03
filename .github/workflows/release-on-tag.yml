@@ -1,0 +1,11 @@
+name: Release (Tag)
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  release:
+    uses: GothenburgBitFactory/taskchampion-sync-server/.github/workflows/publish-docker-image.yaml
+    secrets: inherit
