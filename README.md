@@ -24,6 +24,18 @@ The repository is comprised of four crates:
  - `taskchampion-sync-server-storage-postgres` implements a Postgres backend for the core
  - `taskchampion-sync-server` implements a simple HTTP server for the protocol
 
+## Images
+
+This package builds two docker images:
+ - `ghcr.io/gothenburgbitfactory/taskchampion-sync-server-postgres`
+ - `ghcr.io/gothenburgbitfactory/taskchampion-sync-server-sqlite`
+
+These are tagged with as follows:
+ - With the full version, with tags like `:0.7.1`
+ - With the minor version, with tags like `:0.7`
+ - The latest released version with tag `latest`
+ - A monthly rolling release from Git with tag `edge`
+
 ### Building From Source
 
 #### Installing Rust
