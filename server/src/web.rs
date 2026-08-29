@@ -22,6 +22,7 @@ fn print_error<B>(res: ServiceResponse<B>) -> actix_web::Result<ErrorHandlerResp
 pub struct WebConfig {
     pub client_id_allowlist: Option<HashSet<Uuid>>,
     pub create_clients: bool,
+    pub sync_events: bool,
     pub listen_addresses: Vec<String>,
 }
 
@@ -30,6 +31,7 @@ impl Default for WebConfig {
         Self {
             client_id_allowlist: Default::default(),
             create_clients: true,
+            sync_events: false,
             listen_addresses: vec![],
         }
     }
@@ -57,6 +59,7 @@ impl WebServer {
             server_state: Arc::new(ServerState {
                 server: Server::new(config, storage),
                 web_config,
+                changes: Default::default(),
             }),
         }
     }
