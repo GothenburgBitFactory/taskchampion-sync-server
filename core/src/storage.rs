@@ -74,17 +74,22 @@ pub trait StorageTxn {
     /// Add a version (that must not already exist), and
     ///  - update latest_version_id from parent_version_id to version_id
     ///  - increment snapshot.versions_since
-    /// Fails if the existing `latest_version_id` is not equal to `parent_version_id`. Check
-    /// this by calling `get_client` earlier in the same transaction.
+    ///
+    /// Returns `Ok(None)` on success, or `Ok(Some(current_latest_version_id))` if the
+    /// storage-level CAS on `latest_version_id` detected a concurrent update (i.e. another
+    /// transaction committed between `get_client` and this call). The caller should treat that
+    /// as a version conflict and return it to the client.
     async fn add_version(
         &mut self,
         version_id: Uuid,
         parent_version_id: Uuid,
         history_segment: Vec<u8>,
-    ) -> anyhow::Result<()>;
+    ) -> anyhow::Result<Option<Uuid>>;
 
     /// Commit any changes made in the transaction.  It is an error to call this more than
-    /// once.  It is safe to skip this call for read-only operations.
+    /// once.  Storage backends may open a real database transaction in `Storage::txn`, so
+    /// callers must call `commit` on every normal return path — even read-only ones — to
+    /// ensure the backend's transaction is closed cleanly before the connection is reused.
     async fn commit(&mut self) -> anyhow::Result<()>;
 }
 
