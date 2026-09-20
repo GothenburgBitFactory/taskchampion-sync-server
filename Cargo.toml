@@ -22,7 +22,7 @@ log = "^0.4.17"
 env_logger = "^0.11.7"
 rusqlite = { version = "0.40", features = ["bundled"] }
 chrono = { version = "^0.4.38", features = ["serde"] }
-actix-rt = "2"
+actix-rt = { version = "2", features = ["net"] }
 tempfile = "3"
 pretty_assertions = "1"
 temp-env = "0.3"
