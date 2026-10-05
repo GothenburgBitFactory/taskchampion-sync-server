@@ -27,6 +27,8 @@ empty to allow all clients.
 - `CREATE_CLIENTS` (default `true`) - if true, automatically create clients on
 first sync. If this is set to false, it is up to you to initialize clients in
 the DB.
+- `SYNC_EVENTS` (default `false`) - if true, enable the Server-Sent Events
+change notification endpoint at `/v1/client/events`.
 
 ### Example
 

@@ -35,6 +35,13 @@ pub fn command() -> Command {
                 .required(false),
         )
         .arg(
+            arg!(--"sync-events" "Enable Server-Sent Events change notifications at /v1/client/events")
+                .env("SYNC_EVENTS")
+                .default_value("false")
+                .action(ArgAction::SetTrue)
+                .required(false),
+        )
+        .arg(
             arg!(--"snapshot-versions" <NUM> "Target number of versions between snapshots")
                 .value_parser(value_parser!(u32))
                 .env("SNAPSHOT_VERSIONS")
@@ -63,6 +70,7 @@ pub fn web_config_from_matches(matches: &ArgMatches) -> WebConfig {
             .get_many("allow-client-id")
             .map(|ids| ids.copied().collect()),
         create_clients: matches.get_one("create-clients").copied().unwrap_or(true),
+        sync_events: matches.get_one("sync-events").copied().unwrap_or(false),
         listen_addresses: matches
             .get_many::<String>("listen")
             .unwrap()
@@ -279,6 +287,34 @@ mod test {
             let matches = command().get_matches_from(["tss", "--listen", "localhost:8080"]);
             let server_config = web_config_from_matches(&matches);
             assert_eq!(server_config.create_clients, false);
+        });
+    }
+
+    #[test]
+    fn command_sync_events_default() {
+        with_var_unset("SYNC_EVENTS", || {
+            let matches = command().get_matches_from(["tss", "--listen", "localhost:8080"]);
+            let web_config = web_config_from_matches(&matches);
+            assert_eq!(web_config.sync_events, false);
+        });
+    }
+
+    #[test]
+    fn command_sync_events_cmdline() {
+        with_var_unset("SYNC_EVENTS", || {
+            let matches =
+                command().get_matches_from(["tss", "--listen", "localhost:8080", "--sync-events"]);
+            let web_config = web_config_from_matches(&matches);
+            assert_eq!(web_config.sync_events, true);
+        });
+    }
+
+    #[test]
+    fn command_sync_events_env_true() {
+        with_var("SYNC_EVENTS", Some("true"), || {
+            let matches = command().get_matches_from(["tss", "--listen", "localhost:8080"]);
+            let web_config = web_config_from_matches(&matches);
+            assert_eq!(web_config.sync_events, true);
         });
     }
 
