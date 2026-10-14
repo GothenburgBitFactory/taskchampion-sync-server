@@ -33,8 +33,7 @@ impl ChangeNotifier {
             .lock()
             .expect("change notifier mutex poisoned");
         if let Some(client_subscribers) = subscribers.get_mut(&client_id) {
-            client_subscribers
-                .retain(|subscriber| subscriber.unbounded_send(()).is_ok());
+            client_subscribers.retain(|subscriber| subscriber.unbounded_send(()).is_ok());
         }
     }
 }
@@ -50,9 +49,7 @@ pub(crate) async fn service(
 
     let client_id = server_state.client_id_header(&req)?;
     let stream = server_state.changes.subscribe(client_id).map(|_| {
-        Ok::<_, actix_web::Error>(web::Bytes::from_static(
-            b"event: version\ndata: {}\n\n",
-        ))
+        Ok::<_, actix_web::Error>(web::Bytes::from_static(b"event: version\ndata: {}\n\n"))
     });
 
     Ok(HttpResponse::Ok()
