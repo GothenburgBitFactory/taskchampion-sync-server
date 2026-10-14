@@ -150,7 +150,7 @@ mod test {
         assert!(new_version_id != &version_id.to_string());
 
         let event = changes.next().await.unwrap();
-        assert_eq!(event.client_id, client_id);
+        assert_eq!(event, ());
 
         // Shapshot should be requested, since there is no existing snapshot
         let snapshot_request = resp.headers().get("X-Snapshot-Request").unwrap();

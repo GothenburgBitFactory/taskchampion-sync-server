@@ -4,26 +4,19 @@ use futures::{
     channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
     StreamExt,
 };
-use serde::Serialize;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
 use taskchampion_sync_server_core::ClientId;
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct ChangeEvent {
-    pub(crate) client_id: ClientId,
-}
-
 #[derive(Clone, Default)]
 pub(crate) struct ChangeNotifier {
-    subscribers: Arc<Mutex<HashMap<ClientId, Vec<UnboundedSender<ChangeEvent>>>>>,
+    subscribers: Arc<Mutex<HashMap<ClientId, Vec<UnboundedSender<()>>>>>,
 }
 
 impl ChangeNotifier {
-    pub(crate) fn subscribe(&self, client_id: ClientId) -> UnboundedReceiver<ChangeEvent> {
+    pub(crate) fn subscribe(&self, client_id: ClientId) -> UnboundedReceiver<()> {
         let (tx, rx) = unbounded();
         self.subscribers
             .lock()
@@ -35,14 +28,13 @@ impl ChangeNotifier {
     }
 
     pub(crate) fn notify(&self, client_id: ClientId) {
-        let event = ChangeEvent { client_id };
         let mut subscribers = self
             .subscribers
             .lock()
             .expect("change notifier mutex poisoned");
         if let Some(client_subscribers) = subscribers.get_mut(&client_id) {
             client_subscribers
-                .retain(|subscriber| subscriber.unbounded_send(event.clone()).is_ok());
+                .retain(|subscriber| subscriber.unbounded_send(()).is_ok());
         }
     }
 }
@@ -57,13 +49,10 @@ pub(crate) async fn service(
     }
 
     let client_id = server_state.client_id_header(&req)?;
-    let stream = server_state.changes.subscribe(client_id).map(|event| {
-        let json = serde_json::to_string(&event).expect("change event serializes");
-        Ok::<_, actix_web::Error>(web::Bytes::from(format!(
-            "event: version\n\
-             data: {json}\n\
-             \n"
-        )))
+    let stream = server_state.changes.subscribe(client_id).map(|_| {
+        Ok::<_, actix_web::Error>(web::Bytes::from_static(
+            b"event: version\ndata: {}\n\n",
+        ))
     });
 
     Ok(HttpResponse::Ok()
@@ -89,8 +78,7 @@ mod test {
         let mut rx = notifier.subscribe(client_id);
 
         notifier.notify(client_id);
-        let event = rx.next().await.unwrap();
-        assert_eq!(event.client_id, client_id);
+        assert_eq!(rx.next().await, Some(()));
     }
 
     #[actix_rt::test]
