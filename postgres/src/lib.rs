@@ -83,7 +83,7 @@ impl Storage for PostgresStorage {
         let db_client = self.pool.get_owned().await?;
 
         db_client
-            .execute("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE", &[])
+            .execute("BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED", &[])
             .await?;
 
         Ok(Box::new(Txn {
@@ -252,20 +252,12 @@ impl StorageTxn for Txn {
         version_id: Uuid,
         parent_version_id: Uuid,
         history_segment: Vec<u8>,
-    ) -> anyhow::Result<()> {
-        self.db_client()
-            .execute(
-                "INSERT INTO versions (version_id, client_id, parent_version_id, history_segment)
-                VALUES ($1, $2, $3, $4)",
-                &[
-                    &version_id,
-                    &self.client_id,
-                    &parent_version_id,
-                    &history_segment,
-                ],
-            )
-            .await
-            .context("error inserting new version")?;
+    ) -> anyhow::Result<Option<Uuid>> {
+        // CAS first: attempt to advance latest_version_id before inserting the version row.
+        // Under READ COMMITTED, if a concurrent transaction committed between the caller's
+        // get_client read and this UPDATE, the WHERE clause re-evaluates against the new value
+        // and matches 0 rows. Doing the CAS before the INSERT means a losing transaction never
+        // writes an orphan row to the versions table.
         let rows_modified = self
             .db_client()
             .execute(
@@ -283,17 +275,55 @@ impl StorageTxn for Txn {
             .await
             .context("error updating latest_version_id")?;
 
-        // If no rows were modified, this operation failed.
         if rows_modified == 0 {
-            anyhow::bail!("clients.latest_version_id does not match parent_version_id");
+            let current: Uuid = self
+                .db_client()
+                .query_one(
+                    "SELECT latest_version_id FROM clients WHERE client_id = $1",
+                    &[&self.client_id],
+                )
+                .await
+                .context("error reading latest_version_id after CAS failure")?
+                .get(0);
+            return Ok(Some(current));
         }
-        Ok(())
+
+        self.db_client()
+            .execute(
+                "INSERT INTO versions (version_id, client_id, parent_version_id, history_segment)
+                VALUES ($1, $2, $3, $4)",
+                &[
+                    &version_id,
+                    &self.client_id,
+                    &parent_version_id,
+                    &history_segment,
+                ],
+            )
+            .await
+            .context("error inserting new version")?;
+        Ok(None)
     }
 
     async fn commit(&mut self) -> anyhow::Result<()> {
         self.db_client().execute("COMMIT", &[]).await?;
         self.db_client = None;
         Ok(())
+    }
+}
+
+impl Drop for Txn {
+    fn drop(&mut self) {
+        // If the transaction was not committed, the pooled connection still holds an open (or
+        // aborted) transaction. Roll it back before the connection returns to the pool — otherwise
+        // it poisons the next request that checks it out. The connection is owned by the spawned
+        // task and is not released to bb8 until ROLLBACK completes.
+        if let Some(db_client) = self.db_client.take() {
+            tokio::task::spawn(async move {
+                if let Err(e) = db_client.execute("ROLLBACK", &[]).await {
+                    log::error!("Error rolling back transaction on drop: {e}");
+                }
+            });
+        }
     }
 }
 
@@ -640,9 +670,9 @@ mod test {
     }
 
     #[tokio::test]
-    /// When an add_version call specifies an incorrect `parent_version_id, it fails. This is
-    /// typically avoided by calling `get_client` beforehand, which (due to repeatable reads)
-    /// allows the caller to check the `latest_version_id` before calling `add_version`.
+    /// When add_version is called with a parent_version_id that doesn't match
+    /// latest_version_id, the storage CAS returns Ok(Some(current_latest)) so the
+    /// caller can surface a proper conflict response rather than an opaque error.
     async fn test_add_version_mismatch() -> anyhow::Result<()> {
         with_db(async |connection_string, db_client| {
             let storage = PostgresStorage::new(connection_string).await?;
@@ -653,10 +683,10 @@ mod test {
             let mut txn = storage.txn(client_id).await?;
             let version_id = Uuid::new_v4();
             let parent_version_id = Uuid::new_v4(); // != latest_version_id
-            let res = txn
+            let conflict = txn
                 .add_version(version_id, parent_version_id, b"v1".to_vec())
-                .await;
-            assert!(res.is_err());
+                .await?;
+            assert_eq!(conflict, Some(latest_version_id));
             Ok(())
         })
         .await
@@ -708,6 +738,75 @@ mod test {
             let parent_version_id = Uuid::new_v4();
             txn.add_version(version_id, parent_version_id, b"v1".to_vec())
                 .await?;
+            Ok(())
+        })
+        .await
+    }
+
+    /// A `Txn` dropped without `commit()` must not make its writes visible to the
+    /// next transaction. On the unpatched backend the dropped transaction stays
+    /// open on the pooled connection; the next `txn()` issues `BEGIN` inside it
+    /// and the uncommitted version becomes visible (dirty read).
+    #[tokio::test]
+    async fn test_dropped_transaction_leaks_into_next_request() -> anyhow::Result<()> {
+        with_db(async |connection_string, db_client| {
+            let storage = PostgresStorage::new(connection_string).await?;
+            let client_id = make_client(&db_client).await?;
+            let leaked_version_id = Uuid::new_v4();
+
+            // Request A: write a version, then drop the transaction WITHOUT committing.
+            {
+                let mut txn = storage.txn(client_id).await?;
+                txn.add_version(leaked_version_id, Uuid::nil(), b"uncommitted".to_vec())
+                    .await?;
+                // No commit(). `txn` is dropped here.
+            }
+
+            // Request B: must NOT see request A's uncommitted write.
+            let mut txn = storage.txn(client_id).await?;
+            let seen = txn.get_version(leaked_version_id).await?;
+            txn.commit().await?;
+
+            assert!(
+                seen.is_none(),
+                "uncommitted version from a dropped transaction was visible to the \
+                 next transaction — open-transaction leak on the pooled connection"
+            );
+            Ok(())
+        })
+        .await
+    }
+
+    /// A transaction that errors (e.g. a duplicate-key violation) is left ABORTED
+    /// on its connection. Without a rollback-on-drop the aborted connection returns
+    /// to the pool and poisons every subsequent request. On the unpatched backend
+    /// the next independent `txn()` or read fails with "current transaction is
+    /// aborted, commands ignored until end of transaction block".
+    #[tokio::test]
+    async fn test_aborted_transaction_poisons_pool() -> anyhow::Result<()> {
+        with_db(async |connection_string, db_client| {
+            let storage = PostgresStorage::new(connection_string).await?;
+            let client_id = make_client(&db_client).await?;
+
+            // Request A: force a SQL error — inserting a duplicate client_id violates
+            // the primary key and aborts the transaction.
+            {
+                let mut txn = storage.txn(client_id).await?;
+                let res = txn.new_client(Uuid::nil()).await;
+                assert!(res.is_err(), "expected duplicate client_id insert to fail");
+                // No rollback / commit. `txn` is dropped here in an aborted state.
+            }
+
+            // Request B: a brand-new, unrelated transaction must succeed.
+            let mut txn = storage
+                .txn(client_id)
+                .await
+                .map_err(|e| anyhow::anyhow!("pool poisoned after aborted transaction: {e:#}"))?;
+            txn.get_client()
+                .await
+                .map_err(|e| anyhow::anyhow!("pool poisoned after aborted transaction: {e:#}"))?;
+            txn.commit().await?;
+
             Ok(())
         })
         .await

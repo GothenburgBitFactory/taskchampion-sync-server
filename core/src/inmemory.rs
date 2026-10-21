@@ -131,7 +131,7 @@ impl StorageTxn for InnerTxn<'_> {
         version_id: Uuid,
         parent_version_id: Uuid,
         history_segment: Vec<u8>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Option<Uuid>> {
         let version = Version {
             version_id,
             parent_version_id,
@@ -173,7 +173,7 @@ impl StorageTxn for InnerTxn<'_> {
         }
 
         self.written = true;
-        Ok(())
+        Ok(None)
     }
 
     async fn commit(&mut self) -> anyhow::Result<()> {

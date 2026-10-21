@@ -258,17 +258,10 @@ impl StorageTxn for Txn {
         version_id: Uuid,
         parent_version_id: Uuid,
         history_segment: Vec<u8>,
-    ) -> anyhow::Result<()> {
-        self.con.execute(
-            "INSERT INTO versions (version_id, client_id, parent_version_id, history_segment) VALUES(?, ?, ?, ?)",
-            params![
-                StoredUuid(version_id),
-                StoredUuid(self.client_id),
-                StoredUuid(parent_version_id),
-                history_segment
-            ]
-        )
-        .context("Error adding version")?;
+    ) -> anyhow::Result<Option<Uuid>> {
+        // CAS first: attempt to advance latest_version_id before inserting the version row.
+        // If a concurrent transaction already moved latest_version_id, the WHERE clause matches
+        // 0 rows and we return the conflict without having written an orphan version row.
         let rows_changed = self
             .con
             .execute(
@@ -287,10 +280,28 @@ impl StorageTxn for Txn {
             .context("Error updating client for new version")?;
 
         if rows_changed == 0 {
-            anyhow::bail!("clients.latest_version_id does not match parent_version_id");
+            let current: StoredUuid = self
+                .con
+                .query_row(
+                    "SELECT latest_version_id FROM clients WHERE client_id = ?",
+                    params![StoredUuid(self.client_id)],
+                    |r| r.get(0),
+                )
+                .context("Error reading latest_version_id after CAS failure")?;
+            return Ok(Some(current.0));
         }
 
-        Ok(())
+        self.con.execute(
+            "INSERT INTO versions (version_id, client_id, parent_version_id, history_segment) VALUES(?, ?, ?, ?)",
+            params![
+                StoredUuid(version_id),
+                StoredUuid(self.client_id),
+                StoredUuid(parent_version_id),
+                history_segment
+            ]
+        )
+        .context("Error adding version")?;
+        Ok(None)
     }
 
     async fn commit(&mut self) -> anyhow::Result<()> {
@@ -420,11 +431,13 @@ mod test {
         let history_segment = b"abc".to_vec();
         txn.add_version(version_id, parent_version_id, history_segment.clone())
             .await?;
-        // Fails because the version already exists.
-        assert!(txn
+        // The CAS now runs before the INSERT, so a second attempt with the same parent
+        // fails the CAS (latest_version_id is now version_id, not parent_version_id)
+        // and returns a conflict rather than an INSERT error.
+        let conflict = txn
             .add_version(version_id, parent_version_id, history_segment.clone())
-            .await
-            .is_err());
+            .await?;
+        assert!(conflict.is_some());
         Ok(())
     }
 
@@ -441,11 +454,11 @@ mod test {
         let version_id = Uuid::new_v4();
         let parent_version_id = Uuid::new_v4(); // != latest_version_id
         let history_segment = b"abc".to_vec();
-        // Fails because the latest_version_id is not parent_version_id.
-        assert!(txn
+        // CAS conflict: returns Ok(Some(current_latest)) rather than an error.
+        let conflict = txn
             .add_version(version_id, parent_version_id, history_segment.clone())
-            .await
-            .is_err());
+            .await?;
+        assert_eq!(conflict, Some(latest_version_id));
         Ok(())
     }
 
