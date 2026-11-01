@@ -8,6 +8,7 @@ mod add_version;
 mod events;
 mod get_child_version;
 mod get_snapshot;
+mod latest_version_id;
 
 pub(crate) use events::ChangeNotifier;
 
@@ -64,6 +65,7 @@ pub(crate) fn api_scope() -> Scope {
         .service(add_version::service)
         .service(get_snapshot::service)
         .service(add_snapshot::service)
+        .service(latest_version_id::service)
         .service(events::service)
 }
 

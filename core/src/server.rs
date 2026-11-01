@@ -281,6 +281,13 @@ impl Server {
         })
     }
 
+    /// Implementation of the GetLatessVersionId protocol transaction.
+    pub async fn latest_version_id(&self, client_id: ClientId) -> Result<VersionId, ServerError> {
+        let mut txn = self.txn(client_id).await?;
+        let client = txn.get_client().await?.ok_or(ServerError::NoSuchClient)?;
+        Ok(client.latest_version_id)
+    }
+
     /// Convenience method to get a transaction for the embedded storage.
     pub async fn txn(&self, client_id: Uuid) -> Result<Box<dyn StorageTxn + '_>, ServerError> {
         Ok(self.storage.txn(client_id).await?)
