@@ -1,4 +1,4 @@
-use crate::api::{server_error_to_actix, ServerState, SNAPSHOT_CONTENT_TYPE, VERSION_ID_HEADER};
+use crate::api::{server_error_to_actix, ServerState, VERSION_ID_HEADER};
 use actix_web::{get, web, HttpRequest, HttpResponse, Result};
 use std::sync::Arc;
 
