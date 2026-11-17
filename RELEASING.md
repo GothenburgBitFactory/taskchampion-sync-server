@@ -12,7 +12,10 @@
 1. Run `git tag vX.Y.Z`
 1. Run `git push upstream`
 1. Run `git push upstream --tag vX.Y.Z`
-1. Run `cargo publish` to publish all packages in the workspace
+1. For the binary crate, some temporary modification is required:
+  * Edit `server/Cargo.toml` to replace the `{ path = .. }` for each of the other crates with `{ version = "X.Y.Z" }` and add `optional = true` for the storage crates.
+1. Run `cargo publish --allow-dirty`.
+1. Revert the edits.
 1. Bump the patch version in `*/Cargo.toml` and add the `-pre` suffix. This allows `cargo-semver-checks` to check for changes not accounted for in the version delta.
 1. Run `cargo build --release` again to update `Cargo.lock`
 1. Commit that change with comment "Bump to -pre version".
