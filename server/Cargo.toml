@@ -3,7 +3,10 @@ name = "taskchampion-sync-server"
 version = "0.7.2-pre"
 authors = ["Dustin J. Mitchell <dustin@mozilla.com>"]
 edition = "2021"
-publish = false
+description = "Core of sync protocol for TaskChampion"
+homepage = "https://github.com/GothenburgBitFactory/taskchampion"
+repository = "https://github.com/GothenburgBitFactory/taskchampion-sync-server"
+license = "MIT"
 
 [features]
 # By default, only build the SQLite backend.
